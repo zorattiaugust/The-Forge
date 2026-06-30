@@ -659,7 +659,8 @@ function defaultState() {
       { id: 2, text: 'Yearly budget view' },
       { id: 3, text: 'Custom domain for the hosted site' },
       { id: 4, text: 'AI agent feedback button using your own API key' },
-      { id: 5, text: 'Smarter calendar scoring once more days of data exist' }
+      { id: 5, text: 'Smarter calendar scoring once more days of data exist' },
+      { id: 6, text: 'iOS app — publish Forge to the App Store so others can use it' }
     ],
     reminders: {
       todo: [
@@ -690,6 +691,43 @@ function loadState() {
 
 function saveState() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+  scheduleSyncToSupabase();
+}
+
+function getUserId() {
+  let id = localStorage.getItem('forge_user_id');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('forge_user_id', id); }
+  return id;
+}
+
+let syncTimer;
+function scheduleSyncToSupabase() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushStateToSupabase, 2000);
+}
+
+function pushStateToSupabase() {
+  const backend = getBackend();
+  if (!backend) return;
+  fetch(backend + '/api/state', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: getUserId(), data: state })
+  }).catch(() => {});
+}
+
+async function pullStateFromSupabase() {
+  const backend = getBackend();
+  if (!backend) return;
+  try {
+    const res = await fetch(backend + '/api/state/' + getUserId());
+    const remote = await res.json();
+    if (remote && typeof remote === 'object') {
+      state = Object.assign(loadState(), remote);
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e) {}
+      renderAll();
+    }
+  } catch(e) {}
 }
 
 let state = loadState();
@@ -1148,6 +1186,9 @@ function renderRuns() {
 }
 function renderToday() {
   renderSplit(); renderMacros(); renderSupplements(); renderReading(); renderDial(); renderExercises(); renderNeglect(); renderPlan(); renderRuns();
+}
+function renderAll() {
+  renderToday(); renderCalendar(); renderMeals(); renderBudget(); renderIdeas(); renderReminders();
 }
 
 function addTransaction(cat, amt, note) {
@@ -1643,6 +1684,7 @@ renderCalendar();
 renderIdeas();
 renderReminders();
 mergeCloudLogs();
+pullStateFromSupabase();
 </script>
 </body>
 </html>
