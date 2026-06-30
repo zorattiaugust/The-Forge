@@ -186,9 +186,35 @@
   .counter-btn { width: 28px; height: 28px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .counter-val { font-family: 'IBM Plex Mono', monospace; font-size: 14px; min-width: 54px; text-align: center; }
 
-  .book-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; margin: 0 0 6px; }
+  .book-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; margin: 0 0 2px; }
+  .book-author { font-size: 12px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; margin-bottom: 8px; }
   .book-sub { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin: 6px 0 14px; }
-  .queue-item { font-size: 13px; color: var(--text-dim); padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 6px; font-family: 'IBM Plex Mono', monospace; }
+  .current-book-card { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+  .book-cover { width: 52px; height: 72px; object-fit: cover; border-radius: 3px; flex-shrink: 0; background: var(--surface-2); }
+  .book-info { flex: 1; min-width: 0; }
+  .book-done-btn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; padding: 4px 10px; cursor: pointer; margin-top: 6px; }
+  .book-done-btn:hover { border-color: var(--good); color: var(--good); }
+  .queue-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 6px; font-family: 'IBM Plex Mono', monospace; }
+  .queue-item .q-info { flex: 1; min-width: 0; }
+  .queue-item .q-title { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .queue-item .q-author { color: var(--text-dim); font-size: 11px; }
+  .queue-rm { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 0; }
+  .queue-rm:hover { color: var(--ember); }
+  .book-search-wrap { position: relative; margin-bottom: 8px; }
+  .book-search-wrap input { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px; padding: 9px 12px; outline: none; }
+  .book-search-wrap input:focus { border-color: var(--ember); }
+  .book-dropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--ember); border-top: none; border-radius: 0 0 4px 4px; z-index: 50; max-height: 260px; overflow-y: auto; }
+  .book-dropdown.open { display: block; }
+  .book-opt { display: flex; gap: 10px; align-items: center; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .book-opt:last-child { border-bottom: none; }
+  .book-opt:hover { background: var(--ember-dim); }
+  .book-opt img { width: 32px; height: 44px; object-fit: cover; border-radius: 2px; flex-shrink: 0; background: var(--surface-2); }
+  .book-opt-info .opt-title { font-size: 13px; }
+  .book-opt-info .opt-author { font-size: 11px; color: var(--text-dim); }
+  .book-opt-info .opt-pages { font-size: 11px; color: var(--ember); font-family: 'IBM Plex Mono', monospace; }
+  .suggest-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); margin: 14px 0 6px; }
+  .suggest-chip { display: inline-block; font-size: 12px; font-family: 'IBM Plex Mono', monospace; padding: 5px 10px; border: 1px solid var(--border); border-radius: 4px; margin: 0 6px 6px 0; cursor: pointer; color: var(--text-dim); }
+  .suggest-chip:hover { border-color: var(--ember); color: var(--ember); }
 
   .callout { background: var(--surface); border-left: 3px solid var(--ember); border-radius: 0 4px 4px 0; padding: 12px 14px; font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-bottom: 1.25rem; }
   .callout b { color: var(--text); font-weight: 500; }
@@ -317,11 +343,9 @@
     </section>
 
     <section>
-      <div class="section-head"><h2>Reading</h2><span class="tag">ZERO TO ONE</span></div>
-      <div class="book-title">Zero to One</div>
-      <div class="bar-track"><div class="bar-fill" id="book-bar" style="width:0%"></div></div>
-      <div class="book-sub" id="book-sub"></div>
-      <div class="counter-row">
+      <div class="section-head"><h2>Reading</h2><span class="tag" id="reading-tag">—</span></div>
+      <div id="current-book-area"></div>
+      <div class="counter-row" id="pages-counter-row" style="display:none;">
         <span style="font-size:14px;">Pages tonight</span>
         <div class="counter-controls">
           <button class="counter-btn" id="pages-minus">-</button>
@@ -329,12 +353,12 @@
           <button class="counter-btn" id="pages-plus">+</button>
         </div>
       </div>
-      <div style="margin-top:14px;">
-        <div style="margin-bottom:6px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:11px;">UP NEXT</div>
-        <div class="queue-item">The 48 Laws of Power</div>
-        <div class="queue-item">The Almanack of Naval Ravikant</div>
-        <div class="queue-item">Influence</div>
+      <div class="book-search-wrap">
+        <input type="text" id="book-search" placeholder="Search for a book to add..." autocomplete="off">
+        <div class="book-dropdown" id="book-dropdown"></div>
       </div>
+      <div id="book-queue-area"></div>
+      <div id="book-suggestions-area"></div>
     </section>
   </div>
 
@@ -549,7 +573,13 @@ const SUPP_CATALOG = [
 ];
 const DEFAULT_STACK = ['magnesium','fishoil','b12','creatine','d3k2'];
 const MACRO_TARGET = { cal: 2900, protein: 165, carb: 375, fat: 75 };
-const BOOK = { totalPages: 195, perNight: 20 };
+const PAGES_PER_NIGHT = 20;
+const BOOK_SUGGESTIONS = [
+  'Atomic Habits', 'The 48 Laws of Power', 'Can\'t Hurt Me', 'The Almanack of Naval Ravikant',
+  'Thinking Fast and Slow', 'Rich Dad Poor Dad', 'The Art of War', 'Influence',
+  'Deep Work', 'The Power of Now', '$100M Offers', 'Meditations', 'Outliers',
+  'The Lean Startup', 'Good to Great', 'Never Split the Difference', 'Extreme Ownership'
+];
 const STORE_KEY = 'forge-tracker-v3';
 const HOSP_TOTAL = 1500;
 const HOSP_PAYOFF_DATE = '2027-01-28';
@@ -615,6 +645,7 @@ function todayKey() {
 function defaultState() {
   return {
     workout: {}, macros: {}, supplements: {}, water: {}, reading: {}, meals: {}, exercises: {}, runs: {}, deletedCloudIds: [],
+    books: [], bookProgress: {},
     suppStack: DEFAULT_STACK.map(id => SUPP_CATALOG.find(s => s.id === id)).filter(Boolean),
     budget: {
       weeklyIncomes: [], splitSave: 30, splitPlay: 20,
@@ -649,6 +680,7 @@ function loadState() {
         budget: Object.assign(defaultState().budget, parsed.budget || {}),
         reminders: Object.assign(defaultState().reminders, parsed.reminders || {}),
         deletedCloudIds: parsed.deletedCloudIds || [],
+        books: parsed.books || [], bookProgress: parsed.bookProgress || {},
         suppStack: parsed.suppStack || DEFAULT_STACK.map(id => SUPP_CATALOG.find(s => s.id === id)).filter(Boolean)
       });
     }
@@ -764,6 +796,11 @@ function removeMeal(id) {
 }
 function adjustPages(delta) {
   state.reading[today] = Math.max(0, (state.reading[today] || 0) + delta);
+  const curr = getCurrentBook();
+  if (curr && delta !== 0) {
+    if (!state.bookProgress) state.bookProgress = {};
+    state.bookProgress[curr.id] = Math.max(0, (state.bookProgress[curr.id] || 0) + delta);
+  }
   saveState(); renderToday(); renderCalendar();
   if (delta > 0) syncToCloud('reading', { pages: delta });
 }
@@ -855,14 +892,149 @@ const suppSearchEl = document.getElementById('supp-search');
 suppSearchEl.addEventListener('input', () => renderSuppDropdown(suppSearchEl.value));
 suppSearchEl.addEventListener('focus', () => { if (suppSearchEl.value) renderSuppDropdown(suppSearchEl.value); });
 suppSearchEl.addEventListener('blur', () => setTimeout(() => document.getElementById('supp-dropdown').classList.remove('open'), 150));
+
+const bookSearchEl = document.getElementById('book-search');
+let bookSearchTimer;
+bookSearchEl.addEventListener('input', () => {
+  clearTimeout(bookSearchTimer);
+  bookSearchTimer = setTimeout(() => searchBooks(bookSearchEl.value), 400);
+});
+bookSearchEl.addEventListener('blur', () => setTimeout(() => document.getElementById('book-dropdown').classList.remove('open'), 200));
+function getCurrentBook() {
+  return (state.books || []).find(b => b.status === 'reading') || null;
+}
+function getBookProgress(id) {
+  return state.bookProgress[id] || 0;
+}
+function addBook(book, status) {
+  if ((state.books || []).find(b => b.id === book.id)) return;
+  if (!state.books) state.books = [];
+  if (status === 'reading') {
+    state.books.forEach(b => { if (b.status === 'reading') b.status = 'next'; });
+  }
+  state.books.push({ ...book, status: status || 'next' });
+  if (!state.bookProgress) state.bookProgress = {};
+  saveState(); renderReading();
+}
+function removeBook(id) {
+  state.books = (state.books || []).filter(b => b.id !== id);
+  saveState(); renderReading();
+}
+function markBookDone(id) {
+  const book = (state.books || []).find(b => b.id === id);
+  if (book) book.status = 'done';
+  const next = (state.books || []).find(b => b.status === 'next');
+  if (next) next.status = 'reading';
+  saveState(); renderReading();
+}
+function startBook(id) {
+  state.books.forEach(b => { if (b.status === 'reading') b.status = 'next'; });
+  const book = state.books.find(b => b.id === id);
+  if (book) book.status = 'reading';
+  saveState(); renderReading();
+}
+
+async function searchBooks(query) {
+  const dd = document.getElementById('book-dropdown');
+  if (!query.trim()) { dd.classList.remove('open'); return; }
+  dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">Searching...</div>';
+  dd.classList.add('open');
+  try {
+    const res = await fetch('https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(query) + '&maxResults=6&printType=books');
+    const data = await res.json();
+    dd.innerHTML = '';
+    const items = (data.items || []).filter(i => i.volumeInfo.pageCount);
+    if (!items.length) { dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">No results with page count</div>'; return; }
+    items.forEach(item => {
+      const v = item.volumeInfo;
+      const cover = (v.imageLinks || {}).smallThumbnail || '';
+      const opt = document.createElement('div');
+      opt.className = 'book-opt';
+      opt.innerHTML = (cover ? '<img src="' + cover + '" alt="">' : '<div style="width:32px;height:44px;background:var(--surface-2);border-radius:2px;flex-shrink:0"></div>') +
+        '<div class="book-opt-info"><div class="opt-title">' + (v.title || 'Unknown') + '</div><div class="opt-author">' + (v.authors ? v.authors[0] : 'Unknown') + '</div><div class="opt-pages">' + v.pageCount + ' pages</div></div>';
+      opt.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const existing = (state.books || []);
+        const hasReading = existing.find(b => b.status === 'reading');
+        addBook({
+          id: item.id,
+          title: v.title || 'Unknown',
+          author: v.authors ? v.authors[0] : 'Unknown',
+          pages: v.pageCount,
+          cover: cover
+        }, hasReading ? 'next' : 'reading');
+        document.getElementById('book-search').value = '';
+        dd.classList.remove('open');
+      });
+      dd.appendChild(opt);
+    });
+  } catch(e) { dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">Search failed</div>'; }
+}
+
+async function addSuggestion(title) {
+  document.getElementById('book-search').value = title;
+  await searchBooks(title);
+}
+
 function renderReading() {
-  const pagesRead = totalPagesRead();
-  const pct = Math.min(100, Math.round((pagesRead / BOOK.totalPages) * 100));
-  const pagesLeft = Math.max(0, BOOK.totalPages - pagesRead);
-  const nightsLeft = Math.ceil(pagesLeft / BOOK.perNight);
-  document.getElementById('book-bar').style.width = pct + '%';
-  document.getElementById('book-sub').textContent = pagesRead + ' / ' + BOOK.totalPages + ' pages, about ' + nightsLeft + ' nights left at ' + BOOK.perNight + ' pages a night';
-  document.getElementById('pages-val').textContent = state.reading[today] || 0;
+  const curr = getCurrentBook();
+  const tag = document.getElementById('reading-tag');
+  const currArea = document.getElementById('current-book-area');
+  const counterRow = document.getElementById('pages-counter-row');
+  const queueArea = document.getElementById('book-queue-area');
+  const suggestArea = document.getElementById('book-suggestions-area');
+
+  if (curr) {
+    tag.textContent = curr.title.toUpperCase();
+    const prog = getBookProgress(curr.id);
+    const pct = Math.min(100, Math.round((prog / curr.pages) * 100));
+    const left = Math.max(0, curr.pages - prog);
+    const nights = Math.ceil(left / PAGES_PER_NIGHT);
+    currArea.innerHTML =
+      '<div class="current-book-card">' +
+      (curr.cover ? '<img class="book-cover" src="' + curr.cover + '" alt="cover">' : '<div class="book-cover"></div>') +
+      '<div class="book-info">' +
+      '<div class="book-title">' + curr.title + '</div>' +
+      '<div class="book-author">' + curr.author + '</div>' +
+      '<div class="bar-track"><div class="bar-fill" id="book-bar" style="width:' + pct + '%"></div></div>' +
+      '<div class="book-sub" id="book-sub">' + prog + ' / ' + curr.pages + ' pages &mdash; ~' + nights + ' nights left</div>' +
+      '<button class="book-done-btn" id="book-done-btn">Mark as finished</button>' +
+      '</div></div>';
+    document.getElementById('book-done-btn').addEventListener('click', () => markBookDone(curr.id));
+    counterRow.style.display = '';
+    document.getElementById('pages-val').textContent = state.reading[today] || 0;
+  } else {
+    tag.textContent = '—';
+    currArea.innerHTML = '<div style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">No book in progress. Search above to add one.</div>';
+    counterRow.style.display = 'none';
+  }
+
+  const queue = (state.books || []).filter(b => b.status === 'next');
+  if (queue.length) {
+    queueArea.innerHTML = '<div class="suggest-label">UP NEXT</div>';
+    queue.forEach(b => {
+      const item = document.createElement('div');
+      item.className = 'queue-item';
+      item.innerHTML = '<div class="q-info"><div class="q-title">' + b.title + '</div><div class="q-author">' + b.author + ' &mdash; ' + b.pages + ' pages</div></div><button class="queue-rm">×</button>';
+      item.querySelector('.queue-rm').addEventListener('click', e => { e.stopPropagation(); removeBook(b.id); });
+      item.addEventListener('click', () => startBook(b.id));
+      queueArea.appendChild(item);
+    });
+  } else {
+    queueArea.innerHTML = '';
+  }
+
+  const bookIds = (state.books || []).map(b => b.title.toLowerCase());
+  const suggestions = BOOK_SUGGESTIONS.filter(t => !bookIds.includes(t.toLowerCase()));
+  if (suggestions.length && state.books.length > 0) {
+    suggestArea.innerHTML = '<div class="suggest-label">SUGGESTIONS</div>' +
+      suggestions.slice(0, 8).map(t => '<span class="suggest-chip" data-title="' + t + '">' + t + '</span>').join('');
+    suggestArea.querySelectorAll('.suggest-chip').forEach(chip => {
+      chip.addEventListener('click', () => addSuggestion(chip.dataset.title));
+    });
+  } else {
+    suggestArea.innerHTML = '';
+  }
 }
 function dayScore(dateKey) {
   const workout = state.workout[dateKey] ? 1 : 0;
@@ -876,7 +1048,7 @@ function dayScore(dateKey) {
   ) / 4;
 
   const water = Math.min(1, (state.water[dateKey] || 0) / 8);
-  const reading = Math.min(1, (state.reading[dateKey] || 0) / BOOK.perNight);
+  const reading = Math.min(1, (state.reading[dateKey] || 0) / PAGES_PER_NIGHT);
 
   // Supplements: all taken = 1/4 of one group (so max ~6% of total)
   const stack = state.suppStack || [];
