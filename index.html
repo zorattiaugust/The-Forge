@@ -217,6 +217,9 @@
   .agent-msg.assistant { display: flex; align-items: flex-start; gap: 8px; }
   .agent-icon { font-size: 20px; flex-shrink: 0; line-height: 1.4; }
   .agent-text { white-space: pre-wrap; flex: 1; }
+  #outer-manager.drag-over { outline: 2px dashed var(--ember); outline-offset: -6px; border-radius: 4px; }
+  .file-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--ember-dim); border: 1px solid var(--ember); border-radius: 4px; padding: 6px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-bottom: 8px; }
+  .file-chip button { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
 </style>
 </head>
 <body>
@@ -232,7 +235,8 @@
   </div>
 
   <div class="outer-panel" id="outer-manager">
-    <div class="agent-msgs" id="manager-msgs"><div class="empty">Bring the manager a business idea or task.</div></div>
+    <div class="agent-msgs" id="manager-msgs"><div class="empty">Bring Marcus a business idea or file to review.</div></div>
+    <div id="manager-file-area"></div>
     <div class="agent-input-row">
       <textarea id="manager-input" placeholder="e.g. is a print-on-demand shirt business worth starting?"></textarea>
       <button class="agent-send-btn" id="manager-send">Send</button>
@@ -1104,6 +1108,34 @@ function getBackend() { return 'https://forge-manager-backend-production.up.rail
 
 
 let managerThreadId = localStorage.getItem('forge_manager_thread') || null;
+let managerAttachment = null;
+
+const managerPanel = document.getElementById('outer-manager');
+managerPanel.addEventListener('dragover', e => { e.preventDefault(); managerPanel.classList.add('drag-over'); });
+managerPanel.addEventListener('dragleave', e => { if (!managerPanel.contains(e.relatedTarget)) managerPanel.classList.remove('drag-over'); });
+managerPanel.addEventListener('drop', e => {
+  e.preventDefault();
+  managerPanel.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    managerAttachment = { name: file.name, data: reader.result.split(',')[1], type: file.type || 'application/pdf' };
+    renderManagerAttachment();
+  };
+  reader.readAsDataURL(file);
+});
+
+function renderManagerAttachment() {
+  const area = document.getElementById('manager-file-area');
+  area.innerHTML = '';
+  if (!managerAttachment) return;
+  const chip = document.createElement('div');
+  chip.className = 'file-chip';
+  chip.innerHTML = '📄 ' + managerAttachment.name + '<button>✕</button>';
+  chip.querySelector('button').addEventListener('click', () => { managerAttachment = null; area.innerHTML = ''; });
+  area.appendChild(chip);
+}
 
 async function loadManagerHistory() {
   if (!managerThreadId) return;
@@ -1236,12 +1268,13 @@ document.getElementById('manager-send').addEventListener('click', async () => {
     const res = await fetch(backend + '/api/manager/message', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message: text, threadId: managerThreadId })
+      body: JSON.stringify({ message: text, threadId: managerThreadId, fileData: managerAttachment ? managerAttachment.data : null, fileType: managerAttachment ? managerAttachment.type : null, fileName: managerAttachment ? managerAttachment.name : null })
     });
     const data = await res.json();
     if (data.error) { thinking.querySelector('.agent-text').textContent = data.error; return; }
     managerThreadId = data.threadId;
     localStorage.setItem('forge_manager_thread', managerThreadId);
+    managerAttachment = null; renderManagerAttachment();
     thinking.querySelector('.agent-text').textContent = data.plan || '';
     (data.results || []).forEach(r => {
       const div = document.createElement('div');
