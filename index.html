@@ -1094,6 +1094,7 @@ document.querySelectorAll('.outer-tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('outer-' + btn.getAttribute('data-otab')).classList.add('active');
     if (btn.getAttribute('data-otab') === 'goals') mergeCloudLogs();
+    if (btn.getAttribute('data-otab') === 'manager') loadManagerHistory();
   });
 });
 
@@ -1102,7 +1103,34 @@ const BACKEND_KEY = 'forge_backend_url';
 function getBackend() { return 'https://forge-manager-backend-production.up.railway.app'; }
 
 
-let managerThreadId = null;
+let managerThreadId = localStorage.getItem('forge_manager_thread') || null;
+
+async function loadManagerHistory() {
+  if (!managerThreadId) return;
+  const container = document.getElementById('manager-msgs');
+  if (container.querySelector('[data-loaded]')) return;
+  try {
+    const res = await fetch(getBackend() + '/api/manager/threads/' + managerThreadId + '/messages');
+    const msgs = await res.json();
+    if (!msgs || !msgs.length) return;
+    container.innerHTML = '';
+    msgs.forEach(m => {
+      if (m.role === 'user') {
+        addAgentMsg(container, 'user', m.content);
+      } else if (m.role === 'manager') {
+        addAgentMsg(container, 'assistant', m.content, '💼');
+      } else if (m.role && m.role.startsWith('agent:')) {
+        const specialist = m.role.replace('agent:', '').toUpperCase().replace('_', ' ');
+        const div = document.createElement('div');
+        div.className = 'agent-msg agent';
+        div.innerHTML = '<span class="agent-label">' + specialist + '</span>' + m.content;
+        container.appendChild(div);
+      }
+    });
+    container.setAttribute('data-loaded', '1');
+    container.scrollTop = container.scrollHeight;
+  } catch (e) {}
+}
 
 function addAgentMsg(container, role, text, icon) {
   const empty = container.querySelector('.empty');
@@ -1213,6 +1241,7 @@ document.getElementById('manager-send').addEventListener('click', async () => {
     const data = await res.json();
     if (data.error) { thinking.querySelector('.agent-text').textContent = data.error; return; }
     managerThreadId = data.threadId;
+    localStorage.setItem('forge_manager_thread', managerThreadId);
     thinking.querySelector('.agent-text').textContent = data.plan || '';
     (data.results || []).forEach(r => {
       const div = document.createElement('div');
