@@ -112,13 +112,6 @@
   .stat-chip .num { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--ember); display: block; }
   .stat-chip .label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 0.5px; }
 
-  .settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 10; padding: 20px; }
-  .settings-overlay.active { display: flex; }
-  .settings-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; max-width: 380px; width: 100%; }
-  .settings-box h3 { font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; margin: 0 0 10px; }
-  .settings-box p { font-size: 12px; color: var(--text-dim); margin: 0 0 10px; line-height: 1.4; }
-  .settings-box input { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 9px; font-size: 13px; margin-bottom: 10px; }
-  .settings-box button { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--ember); background: var(--ember-dim); color: var(--text); cursor: pointer; font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; font-size: 14px; }
 
   .dial-row { display: flex; align-items: center; gap: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1.25rem; margin-bottom: 1.75rem; }
   .dial { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
@@ -221,13 +214,15 @@
   .legend .sw { width: 10px; height: 10px; border-radius: 2px; }
 
   footer { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 2.5rem; }
+  .agent-msg.assistant { display: flex; align-items: flex-start; gap: 8px; }
+  .agent-icon { font-size: 20px; flex-shrink: 0; line-height: 1.4; }
+  .agent-text { white-space: pre-wrap; flex: 1; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="brand">FOR<span>G</span>E</div>
-    <button class="gear" id="open-settings">&#9881;</button>
   </header>
 
   <div class="outer-tabs">
@@ -245,7 +240,6 @@
   </div>
 
   <div class="outer-panel" id="outer-coach">
-    <div class="progress-bar" id="progress-bar"></div>
     <div class="agent-msgs" id="coach-msgs"><div class="empty">Tell your coach what you've been doing today.</div></div>
     <div class="agent-input-row">
       <textarea id="coach-input" placeholder="e.g. did legs, leg press 200x8x3"></textarea>
@@ -465,14 +459,6 @@
   </div>
   </div>
 
-  <div class="settings-overlay" id="settings-overlay">
-    <div class="settings-box">
-      <h3>Backend URL</h3>
-      <p>Paste your Railway backend URL (the one ending in .up.railway.app). Saved only on this device.</p>
-      <input type="text" id="backend-url-input" placeholder="https://your-app.up.railway.app">
-      <button id="backend-url-save">Save</button>
-    </div>
-  </div>
 
   <footer>Saved locally on this device. No account, no sync.</footer>
 </div>
@@ -586,7 +572,7 @@ function todayKey() {
 
 function defaultState() {
   return {
-    workout: {}, macros: {}, supplements: {}, water: {}, reading: {}, meals: {}, exercises: {}, runs: {},
+    workout: {}, macros: {}, supplements: {}, water: {}, reading: {}, meals: {}, exercises: {}, runs: {}, deletedCloudIds: [],
     budget: {
       weeklyIncomes: [], splitSave: 30, splitPlay: 20,
       ccBalance: 585,
@@ -618,7 +604,8 @@ function loadState() {
       const parsed = JSON.parse(raw);
       return Object.assign(defaultState(), parsed, {
         budget: Object.assign(defaultState().budget, parsed.budget || {}),
-        reminders: Object.assign(defaultState().reminders, parsed.reminders || {})
+        reminders: Object.assign(defaultState().reminders, parsed.reminders || {}),
+        deletedCloudIds: parsed.deletedCloudIds || []
       });
     }
   } catch (e) {}
@@ -635,21 +622,26 @@ const today = todayKey();
 function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
 
 function setWorkout(id) {
-  if (state.workout[today] === id) delete state.workout[today];
-  else state.workout[today] = id;
+  if (state.workout[today] === id) { delete state.workout[today]; saveState(); renderToday(); renderCalendar(); return; }
+  state.workout[today] = id;
   saveState(); renderToday(); renderCalendar();
+  syncToCloud('workout', { split: id });
 }
 function exVolume(e) { return e.weight * e.reps * e.sets; }
 function addExercise(name, weight, reps, sets) {
   name = name.trim().toLowerCase();
   if (!name || !weight || !reps || !sets) return;
   if (!state.exercises[today]) state.exercises[today] = [];
-  state.exercises[today].push({ id: Date.now(), name, weight, reps, sets, splitId: state.workout[today] || null });
+  const ex = { id: Date.now(), name, weight, reps, sets, splitId: state.workout[today] || null };
+  state.exercises[today].push(ex);
   saveState(); renderToday();
+  syncToCloud('exercise', { name, weight, reps, sets }, id => { ex.cloudId = id; saveState(); });
 }
 function removeExercise(id) {
+  const ex = (state.exercises[today] || []).find(e => e.id === id);
   state.exercises[today] = (state.exercises[today] || []).filter(e => e.id !== id);
   saveState(); renderToday();
+  if (ex && ex.cloudId) deleteFromCloud(ex.cloudId);
 }
 function lastSessionVolume(name, excludeDate) {
   const dates = Object.keys(state.exercises).filter(d => d !== excludeDate).sort().reverse();
@@ -671,12 +663,16 @@ function daysSinceSplit(id) {
 function addRun(dist, mins) {
   if (!dist || !mins) return;
   if (!state.runs[today]) state.runs[today] = [];
-  state.runs[today].push({ id: Date.now(), dist, mins });
+  const run = { id: Date.now(), dist, mins };
+  state.runs[today].push(run);
   saveState(); renderToday();
+  syncToCloud('run', { dist, mins }, id => { run.cloudId = id; saveState(); });
 }
 function removeRun(id) {
+  const run = (state.runs[today] || []).find(r => r.id === id);
   state.runs[today] = (state.runs[today] || []).filter(r => r.id !== id);
   saveState(); renderToday();
+  if (run && run.cloudId) deleteFromCloud(run.cloudId);
 }
 function lastRun(excludeDate) {
   const dates = Object.keys(state.runs).filter(d => d !== excludeDate && (state.runs[d] || []).length).sort().reverse();
@@ -687,12 +683,18 @@ function lastRun(excludeDate) {
 function pace(dist, mins) { return dist > 0 ? mins / dist : 0; }
 function toggleSupp(id) {
   if (!state.supplements[today]) state.supplements[today] = {};
-  state.supplements[today][id] = !state.supplements[today][id];
+  const nowOn = !state.supplements[today][id];
+  state.supplements[today][id] = nowOn;
   saveState(); renderToday(); renderCalendar();
+  if (nowOn) {
+    const supp = SUPPLEMENTS.find(s => s.id === id);
+    syncToCloud('supplement', { name: supp ? supp.name : id });
+  }
 }
 function adjustWater(delta) {
   state.water[today] = Math.max(0, (state.water[today] || 0) + delta);
   saveState(); renderToday();
+  if (delta > 0) syncToCloud('water', { cups: delta });
 }
 function computeDayMacros(dateKey) {
   const meals = state.meals[dateKey] || [];
@@ -705,16 +707,21 @@ function addMeal(text) {
   if (!text.trim()) return;
   const est = estimateMeal(text);
   if (!state.meals[today]) state.meals[today] = [];
-  state.meals[today].push({ id: Date.now(), text: text.trim(), macros: est.macros, matched: est.matched });
+  const meal = { id: Date.now(), text: text.trim(), macros: est.macros, matched: est.matched };
+  state.meals[today].push(meal);
   saveState(); renderToday(); renderCalendar();
+  syncToCloud('meal', { text: meal.text, macros: meal.macros, matched: meal.matched }, id => { meal.cloudId = id; saveState(); });
 }
 function removeMeal(id) {
+  const meal = (state.meals[today] || []).find(m => m.id === id);
   state.meals[today] = (state.meals[today] || []).filter(m => m.id !== id);
   saveState(); renderToday(); renderCalendar();
+  if (meal && meal.cloudId) deleteFromCloud(meal.cloudId);
 }
 function adjustPages(delta) {
   state.reading[today] = Math.max(0, (state.reading[today] || 0) + delta);
   saveState(); renderToday(); renderCalendar();
+  if (delta > 0) syncToCloud('reading', { pages: delta });
 }
 function totalPagesRead() { return Object.values(state.reading).reduce((a,b) => a+b, 0); }
 
@@ -1086,46 +1093,57 @@ document.querySelectorAll('.outer-tab-btn').forEach(btn => {
     document.querySelectorAll('.outer-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('outer-' + btn.getAttribute('data-otab')).classList.add('active');
-    if (btn.getAttribute('data-otab') === 'coach') loadProgress();
+    if (btn.getAttribute('data-otab') === 'goals') mergeCloudLogs();
   });
 });
 
 // --- Backend URL: saved locally only, never in the public code ---
 const BACKEND_KEY = 'forge_backend_url';
-function getBackend() { return (localStorage.getItem(BACKEND_KEY) || '').replace(/\/$/, ''); }
-function setBackend(u) { localStorage.setItem(BACKEND_KEY, u.replace(/\/$/, '')); }
+function getBackend() { return 'https://forge-manager-backend-production.up.railway.app'; }
 
-function showSettings() {
-  document.getElementById('backend-url-input').value = getBackend();
-  document.getElementById('settings-overlay').classList.add('active');
-}
-document.getElementById('open-settings').addEventListener('click', showSettings);
-document.getElementById('backend-url-save').addEventListener('click', () => {
-  const v = document.getElementById('backend-url-input').value.trim();
-  if (!v) return;
-  setBackend(v);
-  document.getElementById('settings-overlay').classList.remove('active');
-  loadProgress();
-});
 
 let managerThreadId = null;
 
-function addAgentMsg(container, role, text) {
+function addAgentMsg(container, role, text, icon) {
   const empty = container.querySelector('.empty');
   if (empty) empty.remove();
   const div = document.createElement('div');
   div.className = 'agent-msg ' + (role === 'user' ? 'user' : 'assistant');
-  div.textContent = text;
+  if (role === 'assistant' && icon) {
+    const iconEl = document.createElement('span');
+    iconEl.className = 'agent-icon';
+    iconEl.textContent = icon;
+    div.appendChild(iconEl);
+  }
+  const textEl = document.createElement('span');
+  textEl.className = 'agent-text';
+  textEl.textContent = text;
+  div.appendChild(textEl);
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   return div;
 }
 
+function describePendingLog(log) {
+  const p = log.payload || {};
+  if (log.category === 'meal') return 'Meal: ' + (p.text || JSON.stringify(p));
+  if (log.category === 'exercise') return 'Exercise: ' + [p.name, p.weight ? p.weight + ' lb' : null, p.reps ? p.reps + ' reps' : null, p.sets ? p.sets + ' sets' : null].filter(Boolean).join(' · ');
+  if (log.category === 'run') return 'Run: ' + (p.dist || '?') + ' miles · ' + (p.mins || '?') + ' min';
+  if (log.category === 'water') return 'Water: ' + (p.cups || 1) + ' cup(s)';
+  if (log.category === 'supplement') return 'Supplement: ' + (p.name || JSON.stringify(p));
+  if (log.category === 'reading') return 'Reading: ' + (p.pages || '?') + ' pages';
+  if (log.category === 'budget') return 'Budget: $' + (p.amount || '?') + (p.note ? ' · ' + p.note : '');
+  if (log.category === 'workout') return 'Workout: ' + (p.split || p.name || JSON.stringify(p));
+  return log.category + ': ' + JSON.stringify(p);
+}
+
 function addPendingCard(container, pendingList) {
-  pendingList.forEach(id => {
+  pendingList.forEach(log => {
+    const id = typeof log === 'object' ? log.id : log;
     const card = document.createElement('div');
     card.className = 'pending-card';
-    card.innerHTML = 'Waiting on your confirmation to log this.' +
+    const desc = typeof log === 'object' ? describePendingLog(log) : 'Log entry';
+    card.innerHTML = '<b>Confirm log?</b><div style="margin-top:4px; color:var(--text-dim);">' + desc + '</div>' +
       '<div class="pending-actions">' +
       '<button class="approve" data-approve="' + id + '">Confirm</button>' +
       '<button class="reject" data-reject="' + id + '">Skip</button>' +
@@ -1148,7 +1166,7 @@ async function confirmPending(btn, approve) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ id: Number(id), approve })
     });
-    if (approve) loadProgress();
+    if (approve) mergeCloudLogs();
   } catch (e) {
     card.innerHTML = 'Could not reach the server.';
   }
@@ -1156,14 +1174,13 @@ async function confirmPending(btn, approve) {
 
 document.getElementById('coach-send').addEventListener('click', async () => {
   const backend = getBackend();
-  if (!backend) { showSettings(); return; }
   const ta = document.getElementById('coach-input');
   const text = ta.value.trim();
   if (!text) return;
   const container = document.getElementById('coach-msgs');
   addAgentMsg(container, 'user', text);
   ta.value = '';
-  const thinking = addAgentMsg(container, 'assistant', 'Thinking...');
+  const thinking = addAgentMsg(container, 'assistant', 'Thinking...', '🏋️');
   try {
     const res = await fetch(backend + '/api/coach/message', {
       method: 'POST',
@@ -1171,23 +1188,22 @@ document.getElementById('coach-send').addEventListener('click', async () => {
       body: JSON.stringify({ message: text })
     });
     const data = await res.json();
-    thinking.textContent = data.reply || data.error || 'No response.';
+    thinking.querySelector('.agent-text').textContent = data.reply || data.error || 'No response.';
     if (data.pending && data.pending.length) addPendingCard(container, data.pending);
   } catch (e) {
-    thinking.textContent = 'Could not reach the backend. Check the URL in settings.';
+    thinking.querySelector('.agent-text').textContent = 'Could not reach the backend. Check the URL in settings.';
   }
 });
 
 document.getElementById('manager-send').addEventListener('click', async () => {
   const backend = getBackend();
-  if (!backend) { showSettings(); return; }
   const ta = document.getElementById('manager-input');
   const text = ta.value.trim();
   if (!text) return;
   const container = document.getElementById('manager-msgs');
   addAgentMsg(container, 'user', text);
   ta.value = '';
-  const thinking = addAgentMsg(container, 'assistant', 'Delegating to the team...');
+  const thinking = addAgentMsg(container, 'assistant', 'Delegating to the team...', '💼');
   try {
     const res = await fetch(backend + '/api/manager/message', {
       method: 'POST',
@@ -1195,9 +1211,9 @@ document.getElementById('manager-send').addEventListener('click', async () => {
       body: JSON.stringify({ message: text, threadId: managerThreadId })
     });
     const data = await res.json();
-    if (data.error) { thinking.textContent = data.error; return; }
+    if (data.error) { thinking.querySelector('.agent-text').textContent = data.error; return; }
     managerThreadId = data.threadId;
-    thinking.textContent = data.plan || '';
+    thinking.querySelector('.agent-text').textContent = data.plan || '';
     (data.results || []).forEach(r => {
       const div = document.createElement('div');
       div.className = 'agent-msg agent';
@@ -1206,7 +1222,7 @@ document.getElementById('manager-send').addEventListener('click', async () => {
     });
     container.scrollTop = container.scrollHeight;
   } catch (e) {
-    thinking.textContent = 'Could not reach the backend. Check the URL in settings.';
+    thinking.querySelector('.agent-text').textContent = 'Could not reach the backend. Check the URL in settings.';
   }
 });
 
@@ -1220,41 +1236,78 @@ document.getElementById('manager-send').addEventListener('click', async () => {
   });
 });
 
-async function loadProgress() {
+function syncToCloud(category, payload, onId) {
   const backend = getBackend();
-  const bar = document.getElementById('progress-bar');
-  if (!backend) { bar.innerHTML = ''; return; }
+  if (!backend) return;
+  fetch(backend + '/api/forge/log', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ category, payload })
+  }).then(r => r.json()).then(data => { if (data.id && onId) onId(data.id); }).catch(() => {});
+}
+
+function deleteFromCloud(cloudId) {
+  const backend = getBackend();
+  if (!backend || !cloudId) return;
+  fetch(backend + '/api/forge/log/' + cloudId, { method: 'DELETE' }).catch(() => {});
+}
+
+async function mergeCloudLogs() {
+  const backend = getBackend();
+  if (!backend) return;
   try {
     const res = await fetch(backend + '/api/forge/logs');
     const logs = await res.json();
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const todays = (logs || []).filter(l => l.log_date === todayKey);
-    const did = cat => todays.some(l => l.category === cat);
-    const waterCups = todays.filter(l => l.category === 'water').reduce((s, l) => s + (l.payload.cups || 1), 0);
-    const pages = todays.filter(l => l.category === 'reading').reduce((s, l) => s + (l.payload.pages || 0), 0);
-    const exCount = todays.filter(l => l.category === 'exercise' || l.category === 'run').length;
-    const supps = todays.filter(l => l.category === 'supplement').length;
-    bar.innerHTML =
-      chip(did('workout') ? '\u2713' : '-', 'WORKOUT') +
-      chip(exCount, 'SETS/RUNS') +
-      chip(supps, 'SUPPS') +
-      chip(waterCups, 'WATER') +
-      chip(pages, 'PAGES') +
-      chip(todays.filter(l => l.category === 'meal').length, 'MEALS');
-  } catch (e) {
-    bar.innerHTML = '';
-  }
+    const deleted = state.deletedCloudIds || [];
+    let changed = false;
+    (logs || []).filter(l => l.log_date === today && !deleted.includes(l.id)).forEach(l => {
+      const p = l.payload || {};
+      const cid = l.id;
+      if (l.category === 'workout' && p.split && !state.workout[today]) {
+        state.workout[today] = p.split; changed = true;
+      }
+      if (l.category === 'exercise') {
+        if (!state.exercises[today]) state.exercises[today] = [];
+        if (!state.exercises[today].find(e => e.cloudId === cid)) {
+          state.exercises[today].push({ id: cid, cloudId: cid, name: p.name || '', weight: p.weight || 0, reps: p.reps || 0, sets: p.sets || 0, splitId: null });
+          changed = true;
+        }
+      }
+      if (l.category === 'run') {
+        if (!state.runs[today]) state.runs[today] = [];
+        if (!state.runs[today].find(r => r.cloudId === cid)) {
+          state.runs[today].push({ id: cid, cloudId: cid, dist: p.dist || 0, mins: p.mins || 0 });
+          changed = true;
+        }
+      }
+      if (l.category === 'meal') {
+        if (!state.meals[today]) state.meals[today] = [];
+        if (!state.meals[today].find(m => m.cloudId === cid)) {
+          const est = estimateMeal(p.text || '');
+          state.meals[today].push({ id: cid, cloudId: cid, text: p.text || '', macros: p.macros || est.macros, matched: p.matched !== undefined ? p.matched : est.matched });
+          changed = true;
+        }
+      }
+      if (l.category === 'supplement') {
+        if (!state.supplements[today]) state.supplements[today] = {};
+        const suppName = (p.name || '').toLowerCase().replace(/\s+/g, '');
+        const supp = SUPPLEMENTS.find(s => s.id === suppName || s.name.toLowerCase().replace(/\s+/g, '') === suppName);
+        if (supp && !state.supplements[today][supp.id]) {
+          state.supplements[today][supp.id] = true; changed = true;
+        }
+      }
+    });
+    if (changed) { saveState(); renderToday(); renderCalendar(); }
+  } catch (e) {}
 }
-function chip(num, label) {
-  return '<div class="stat-chip"><span class="num">' + num + '</span><span class="label">' + label + '</span></div>';
-}
-if (!getBackend()) showSettings();
+
 
 renderToday();
 renderBudget();
 renderCalendar();
 renderIdeas();
 renderReminders();
+mergeCloudLogs();
 </script>
 </body>
 </html>
