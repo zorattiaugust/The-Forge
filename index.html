@@ -163,13 +163,23 @@
   }
   input::placeholder { color: var(--text-dim); }
 
-  .supp-list { display: flex; flex-direction: column; gap: 6px; }
+  .supp-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
   .supp-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
   .supp-row.done { background: rgba(122,140,92,0.12); border-color: var(--good); }
-  .supp-row .name { font-size: 14px; }
+  .supp-row .name { font-size: 14px; flex: 1; }
   .supp-row.done .name { color: var(--good); }
   .check { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--text-dim); display: flex; align-items: center; justify-content: center; font-size: 11px; }
   .supp-row.done .check { border-color: var(--good); background: var(--good); color: #15130f; }
+  .supp-rm { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 0 0 0 10px; line-height: 1; }
+  .supp-rm:hover { color: var(--ember); }
+  .supp-search-wrap { position: relative; margin-bottom: 8px; }
+  .supp-search-wrap input { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px; padding: 9px 12px; outline: none; }
+  .supp-search-wrap input:focus { border-color: var(--ember); }
+  .supp-dropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--ember); border-top: none; border-radius: 0 0 4px 4px; z-index: 50; max-height: 200px; overflow-y: auto; }
+  .supp-dropdown.open { display: block; }
+  .supp-opt { padding: 9px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .supp-opt:last-child { border-bottom: none; }
+  .supp-opt:hover { background: var(--ember-dim); color: var(--ember); }
 
   .counter-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; }
   .counter-controls { display: flex; align-items: center; gap: 12px; }
@@ -292,6 +302,10 @@
     <section>
       <div class="section-head"><h2>Stack</h2><span class="tag">DAILY</span></div>
       <div class="supp-list" id="supp-list"></div>
+      <div class="supp-search-wrap" id="supp-search-wrap">
+        <input type="text" id="supp-search" placeholder="Add supplement..." autocomplete="off">
+        <div class="supp-dropdown" id="supp-dropdown"></div>
+      </div>
       <div class="counter-row" style="margin-top:8px;">
         <span style="font-size:14px;">Water</span>
         <div class="counter-controls">
@@ -506,13 +520,34 @@ const SPLIT_PLAN = {
     { name: 'hamstring curls', sets: 4, reps: 10 }
   ]}
 };
-const SUPPLEMENTS = [
+const SUPP_CATALOG = [
   { id: 'magnesium', name: 'Magnesium' },
-  { id: 'fishoil', name: 'Fish oil' },
+  { id: 'fishoil', name: 'Fish Oil' },
   { id: 'b12', name: 'B12' },
   { id: 'creatine', name: 'Creatine' },
-  { id: 'd3k2', name: 'D3+K2' }
+  { id: 'd3k2', name: 'D3+K2' },
+  { id: 'vitaminc', name: 'Vitamin C' },
+  { id: 'vitamind', name: 'Vitamin D' },
+  { id: 'zinc', name: 'Zinc' },
+  { id: 'ashwagandha', name: 'Ashwagandha' },
+  { id: 'coq10', name: 'CoQ10' },
+  { id: 'nac', name: 'NAC' },
+  { id: 'berberine', name: 'Berberine' },
+  { id: 'melatonin', name: 'Melatonin' },
+  { id: 'collagen', name: 'Collagen' },
+  { id: 'iron', name: 'Iron' },
+  { id: 'omega3', name: 'Omega-3' },
+  { id: 'probiotics', name: 'Probiotics' },
+  { id: 'turmeric', name: 'Turmeric' },
+  { id: 'lionsmane', name: "Lion's Mane" },
+  { id: 'rhodiola', name: 'Rhodiola' },
+  { id: 'ltheanine', name: 'L-Theanine' },
+  { id: 'preworkout', name: 'Pre-workout' },
+  { id: 'caffeine', name: 'Caffeine' },
+  { id: 'b6', name: 'Vitamin B6' },
+  { id: 'folate', name: 'Folate' }
 ];
+const DEFAULT_STACK = ['magnesium','fishoil','b12','creatine','d3k2'];
 const MACRO_TARGET = { cal: 2900, protein: 165, carb: 375, fat: 75 };
 const BOOK = { totalPages: 195, perNight: 20 };
 const STORE_KEY = 'forge-tracker-v3';
@@ -580,6 +615,7 @@ function todayKey() {
 function defaultState() {
   return {
     workout: {}, macros: {}, supplements: {}, water: {}, reading: {}, meals: {}, exercises: {}, runs: {}, deletedCloudIds: [],
+    suppStack: DEFAULT_STACK.map(id => SUPP_CATALOG.find(s => s.id === id)).filter(Boolean),
     budget: {
       weeklyIncomes: [], splitSave: 30, splitPlay: 20,
       ccBalance: 585,
@@ -612,7 +648,8 @@ function loadState() {
       return Object.assign(defaultState(), parsed, {
         budget: Object.assign(defaultState().budget, parsed.budget || {}),
         reminders: Object.assign(defaultState().reminders, parsed.reminders || {}),
-        deletedCloudIds: parsed.deletedCloudIds || []
+        deletedCloudIds: parsed.deletedCloudIds || [],
+        suppStack: parsed.suppStack || DEFAULT_STACK.map(id => SUPP_CATALOG.find(s => s.id === id)).filter(Boolean)
       });
     }
   } catch (e) {}
@@ -694,7 +731,7 @@ function toggleSupp(id) {
   state.supplements[today][id] = nowOn;
   saveState(); renderToday(); renderCalendar();
   if (nowOn) {
-    const supp = SUPPLEMENTS.find(s => s.id === id);
+    const supp = (state.suppStack || []).find(s => s.id === id);
     syncToCloud('supplement', { name: supp ? supp.name : id });
   }
 }
@@ -766,16 +803,58 @@ function renderMacros() {
 function renderSupplements() {
   const list = document.getElementById('supp-list');
   list.innerHTML = '';
-  SUPPLEMENTS.forEach(s => {
+  (state.suppStack || []).forEach(s => {
     const done = !!(state.supplements[today] && state.supplements[today][s.id]);
     const row = document.createElement('div');
     row.className = 'supp-row' + (done ? ' done' : '');
-    row.innerHTML = '<span class="name">' + s.name + '</span><span class="check">' + (done ? '\u2713' : '') + '</span>';
+    row.innerHTML = '<span class="name">' + s.name + '</span><span class="check">' + (done ? '\u2713' : '') + '</span><button class="supp-rm" title="Remove">\u00d7</button>';
+    row.querySelector('.supp-rm').addEventListener('click', e => { e.stopPropagation(); removeSuppFromStack(s.id); });
     row.addEventListener('click', () => toggleSupp(s.id));
     list.appendChild(row);
   });
   document.getElementById('water-val').textContent = (state.water[today] || 0) + ' / 8';
 }
+
+function addSuppToStack(id, name) {
+  if (!state.suppStack) state.suppStack = [];
+  if (state.suppStack.find(s => s.id === id)) return;
+  state.suppStack.push({ id, name });
+  saveState(); renderSupplements(); renderDial();
+}
+
+function removeSuppFromStack(id) {
+  state.suppStack = (state.suppStack || []).filter(s => s.id !== id);
+  saveState(); renderSupplements(); renderDial();
+}
+
+function renderSuppDropdown(query) {
+  const dd = document.getElementById('supp-dropdown');
+  const stack = state.suppStack || [];
+  const q = query.toLowerCase().trim();
+  let matches = SUPP_CATALOG.filter(s =>
+    !stack.find(x => x.id === s.id) && (!q || s.name.toLowerCase().includes(q))
+  );
+  if (!matches.length && q) matches = [{ id: 'custom_' + q, name: query.trim() }];
+  dd.innerHTML = '';
+  matches.slice(0, 8).forEach(s => {
+    const opt = document.createElement('div');
+    opt.className = 'supp-opt';
+    opt.textContent = s.name;
+    opt.addEventListener('mousedown', e => {
+      e.preventDefault();
+      addSuppToStack(s.id, s.name);
+      document.getElementById('supp-search').value = '';
+      dd.classList.remove('open');
+    });
+    dd.appendChild(opt);
+  });
+  dd.classList.toggle('open', matches.length > 0 && q.length > 0);
+}
+
+const suppSearchEl = document.getElementById('supp-search');
+suppSearchEl.addEventListener('input', () => renderSuppDropdown(suppSearchEl.value));
+suppSearchEl.addEventListener('focus', () => { if (suppSearchEl.value) renderSuppDropdown(suppSearchEl.value); });
+suppSearchEl.addEventListener('blur', () => setTimeout(() => document.getElementById('supp-dropdown').classList.remove('open'), 150));
 function renderReading() {
   const pagesRead = totalPagesRead();
   const pct = Math.min(100, Math.round((pagesRead / BOOK.totalPages) * 100));
@@ -800,8 +879,9 @@ function dayScore(dateKey) {
   const reading = Math.min(1, (state.reading[dateKey] || 0) / BOOK.perNight);
 
   // Supplements: all taken = 1/4 of one group (so max ~6% of total)
-  const suppCount = SUPPLEMENTS.length || 1;
-  const suppTaken = SUPPLEMENTS.filter(s => state.supplements[dateKey] && state.supplements[dateKey][s.id]).length;
+  const stack = state.suppStack || [];
+  const suppCount = stack.length || 1;
+  const suppTaken = stack.filter(s => state.supplements[dateKey] && state.supplements[dateKey][s.id]).length;
   const supp = (suppTaken / suppCount) * 0.25;
 
   // 4 main groups + supp bonus. Total denominator = 4.25
@@ -1374,7 +1454,7 @@ async function mergeCloudLogs() {
       if (l.category === 'supplement') {
         if (!state.supplements[today]) state.supplements[today] = {};
         const suppName = (p.name || '').toLowerCase().replace(/\s+/g, '');
-        const supp = SUPPLEMENTS.find(s => s.id === suppName || s.name.toLowerCase().replace(/\s+/g, '') === suppName);
+        const supp = (state.suppStack || []).find(s => s.id === suppName || s.name.toLowerCase().replace(/\s+/g, '') === suppName);
         if (supp && !state.supplements[today][supp.id]) {
           state.supplements[today][supp.id] = true; changed = true;
         }
