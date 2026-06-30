@@ -183,6 +183,7 @@
     <button class="tab-btn active" data-tab="today">Today</button>
     <button class="tab-btn" data-tab="workout">Workout</button>
     <button class="tab-btn" data-tab="budget">Budget</button>
+    <button class="tab-btn" data-tab="reminders">Reminders</button>
     <button class="tab-btn" data-tab="calendar">Calendar</button>
     <button class="tab-btn" data-tab="ideas">Ideas</button>
   </div>
@@ -364,6 +365,21 @@
     </section>
   </div>
 
+  <div class="panel" id="panel-reminders">
+    <section>
+      <div class="section-head"><h2>Have to do</h2><span class="tag">REAL TASKS</span></div>
+      <div class="meal-list" id="todo-list"></div>
+      <textarea id="todo-input" placeholder="e.g. dispute the card charge, order the book"></textarea>
+      <button class="add-meal-btn" id="add-todo-btn">Add</button>
+    </section>
+    <section>
+      <div class="section-head"><h2>Want to do</h2><span class="tag">SOMEDAY</span></div>
+      <div class="meal-list" id="want-list"></div>
+      <textarea id="want-input" placeholder="e.g. try a new gym, read another book after this one"></textarea>
+      <button class="add-meal-btn" id="add-want-btn">Add</button>
+    </section>
+  </div>
+
   <div class="panel" id="panel-ideas">
     <div class="callout">This is the backlog. Anything you mention wanting later goes here so it doesn't get lost.</div>
     <div class="meal-list" id="ideas-list"></div>
@@ -497,7 +513,14 @@ function defaultState() {
       { id: 3, text: 'Custom domain for the hosted site' },
       { id: 4, text: 'AI agent feedback button using your own API key' },
       { id: 5, text: 'Smarter calendar scoring once more days of data exist' }
-    ]
+    ],
+    reminders: {
+      todo: [
+        { id: 1, text: 'Dispute the credit card charge for the never-shipped book' },
+        { id: 2, text: 'Order The 48 Laws of Power once Zero to One is finished' }
+      ],
+      want: []
+    }
   };
 }
 
@@ -506,7 +529,10 @@ function loadState() {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return Object.assign(defaultState(), parsed, { budget: Object.assign(defaultState().budget, parsed.budget || {}) });
+      return Object.assign(defaultState(), parsed, {
+        budget: Object.assign(defaultState().budget, parsed.budget || {}),
+        reminders: Object.assign(defaultState().reminders, parsed.reminders || {})
+      });
     }
   } catch (e) {}
   return defaultState();
@@ -906,6 +932,38 @@ document.getElementById('tx-add').addEventListener('click', () => {
   document.getElementById('tx-note').value = '';
 });
 
+function renderReminders() {
+  const r = state.reminders;
+  document.getElementById('todo-list').innerHTML = r.todo.length
+    ? r.todo.map(i => '<div class="meal-row"><div class="top"><div class="desc">' + i.text + '</div><button class="rm" data-rm-todo="' + i.id + '">remove</button></div></div>').join('')
+    : '<div style="font-size:12px; color:var(--text-dim); padding:8px 0;">Nothing on the list.</div>';
+  document.getElementById('want-list').innerHTML = r.want.length
+    ? r.want.map(i => '<div class="meal-row"><div class="top"><div class="desc">' + i.text + '</div><button class="rm" data-rm-want="' + i.id + '">remove</button></div></div>').join('')
+    : '<div style="font-size:12px; color:var(--text-dim); padding:8px 0;">Nothing on the list.</div>';
+  document.querySelectorAll('[data-rm-todo]').forEach(btn => btn.addEventListener('click', () => {
+    state.reminders.todo = state.reminders.todo.filter(i => i.id !== Number(btn.getAttribute('data-rm-todo')));
+    saveState(); renderReminders();
+  }));
+  document.querySelectorAll('[data-rm-want]').forEach(btn => btn.addEventListener('click', () => {
+    state.reminders.want = state.reminders.want.filter(i => i.id !== Number(btn.getAttribute('data-rm-want')));
+    saveState(); renderReminders();
+  }));
+}
+document.getElementById('add-todo-btn').addEventListener('click', () => {
+  const ta = document.getElementById('todo-input');
+  if (!ta.value.trim()) return;
+  state.reminders.todo.push({ id: Date.now(), text: ta.value.trim() });
+  saveState(); renderReminders();
+  ta.value = '';
+});
+document.getElementById('add-want-btn').addEventListener('click', () => {
+  const ta = document.getElementById('want-input');
+  if (!ta.value.trim()) return;
+  state.reminders.want.push({ id: Date.now(), text: ta.value.trim() });
+  saveState(); renderReminders();
+  ta.value = '';
+});
+
 function renderIdeas() {
   const list = state.ideas || [];
   document.getElementById('ideas-list').innerHTML = list.length
@@ -938,6 +996,7 @@ renderToday();
 renderBudget();
 renderCalendar();
 renderIdeas();
+renderReminders();
 </script>
 </body>
 </html>
