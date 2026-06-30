@@ -805,14 +805,16 @@ function dayScore(dateKey) {
 
   // 4 main groups + supp bonus. Total denominator = 4.25
   const sum = workout + nutrition + water + reading + supp;
-  const pct = Math.min(100, Math.round((sum / 4.25) * 100));
+  // 4 main groups = denominator; supps are a tiny bonus (capped at 100%)
+  const precise = Math.min(1, (workout + nutrition + water + reading + supp) / 4);
+  const pct = Math.round(precise * 100);
   const done = [workout >= 1, nutrition >= 0.9, water >= 1, reading >= 1].filter(Boolean).length;
-  return { done, total: 4, pct };
+  return { done, total: 4, pct, precise };
 }
 function renderDial() {
   const s = dayScore(today);
   const circumference = 226;
-  const offset = circumference - (circumference * s.pct / 100);
+  const offset = circumference - (circumference * s.precise);
   document.getElementById('dial-fill').style.strokeDashoffset = offset;
   document.getElementById('dial-num').textContent = s.pct + '%';
   document.getElementById('dial-sub').textContent = s.done + ' of ' + s.total + ' targets hit today';
