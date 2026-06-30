@@ -220,6 +220,8 @@
   #outer-manager.drag-over { outline: 2px dashed var(--ember); outline-offset: -6px; border-radius: 4px; }
   .file-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--ember-dim); border: 1px solid var(--ember); border-radius: 4px; padding: 6px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-bottom: 8px; }
   .file-chip button { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
+  .history-btn { display: block; margin: 8px auto; background: none; border: 1px solid var(--border); color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+  .history-btn:hover { border-color: var(--ember); color: var(--ember); }
 </style>
 </head>
 <body>
@@ -1098,7 +1100,7 @@ document.querySelectorAll('.outer-tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('outer-' + btn.getAttribute('data-otab')).classList.add('active');
     if (btn.getAttribute('data-otab') === 'goals') mergeCloudLogs();
-    if (btn.getAttribute('data-otab') === 'manager') loadManagerHistory();
+    if (btn.getAttribute('data-otab') === 'manager') renderHistoryButton();
   });
 });
 
@@ -1135,6 +1137,18 @@ function renderManagerAttachment() {
   chip.innerHTML = '📄 ' + managerAttachment.name + '<button>✕</button>';
   chip.querySelector('button').addEventListener('click', () => { managerAttachment = null; area.innerHTML = ''; });
   area.appendChild(chip);
+}
+
+function renderHistoryButton() {
+  if (!managerThreadId) return;
+  const container = document.getElementById('manager-msgs');
+  if (container.querySelector('[data-loaded]') || container.querySelector('#history-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'history-btn';
+  btn.className = 'history-btn';
+  btn.textContent = 'Load previous conversation';
+  btn.addEventListener('click', () => { btn.remove(); loadManagerHistory(); });
+  container.appendChild(btn);
 }
 
 async function loadManagerHistory() {
