@@ -785,25 +785,29 @@ function renderReading() {
   document.getElementById('pages-val').textContent = state.reading[today] || 0;
 }
 function dayScore(dateKey) {
-  const slots = [];
-  slots.push(state.workout[dateKey] ? 1 : 0);
-  SUPPLEMENTS.forEach(s => {
-    slots.push(state.supplements[dateKey] && state.supplements[dateKey][s.id] ? 1 : 0);
-  });
-  slots.push(Math.min(1, (state.water[dateKey] || 0) / 8));
+  const workout = state.workout[dateKey] ? 1 : 0;
+
   const m = computeDayMacros(dateKey);
-  const foodFraction = (
+  const nutrition = (
     Math.min(1, m.cal / MACRO_TARGET.cal) +
     Math.min(1, m.protein / MACRO_TARGET.protein) +
     Math.min(1, m.carb / MACRO_TARGET.carb) +
     Math.min(1, m.fat / MACRO_TARGET.fat)
   ) / 4;
-  slots.push(foodFraction);
-  slots.push(Math.min(1, (state.reading[dateKey] || 0) / BOOK.perNight));
-  const sum = slots.reduce((a,b) => a+b, 0);
-  const pct = Math.round((sum / slots.length) * 100);
-  const done = slots.filter(s => s >= 1).length;
-  return { done, total: slots.length, pct };
+
+  const water = Math.min(1, (state.water[dateKey] || 0) / 8);
+  const reading = Math.min(1, (state.reading[dateKey] || 0) / BOOK.perNight);
+
+  // Supplements: all taken = 1/4 of one group (so max ~6% of total)
+  const suppCount = SUPPLEMENTS.length || 1;
+  const suppTaken = SUPPLEMENTS.filter(s => state.supplements[dateKey] && state.supplements[dateKey][s.id]).length;
+  const supp = (suppTaken / suppCount) * 0.25;
+
+  // 4 main groups + supp bonus. Total denominator = 4.25
+  const sum = workout + nutrition + water + reading + supp;
+  const pct = Math.min(100, Math.round((sum / 4.25) * 100));
+  const done = [workout >= 1, nutrition >= 0.9, water >= 1, reading >= 1].filter(Boolean).length;
+  return { done, total: 4, pct };
 }
 function renderDial() {
   const s = dayScore(today);
