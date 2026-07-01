@@ -1005,6 +1005,14 @@ function monthlyAverageIncome() {
   return avgWeekly * 4.33;
 }
 
+function splitHeatStyle(pct) {
+  if (pct <= 50) return '';
+  const t = Math.min(1, (pct - 50) / 50);
+  const bgAlpha = (0.10 + t * 0.35).toFixed(2);
+  const borderAlpha = (0.4 + t * 0.6).toFixed(2);
+  return 'background:rgba(181,80,63,' + bgAlpha + ');border-color:rgba(181,80,63,' + borderAlpha + ');';
+}
+
 function renderBudget() {
   const b = state.budget;
   document.getElementById('week-income-input').value = '';
@@ -1018,9 +1026,9 @@ function renderBudget() {
   document.getElementById('split-play').value = b.splitPlay;
   const debtPct = Math.max(0, 100 - b.splitSave - b.splitPlay);
   document.getElementById('split-summary').innerHTML =
-    '<div class="split-card"><div class="pct">' + b.splitSave + '%</div><div class="lbl">Save</div><div class="amt">' + fmt(monthlyAvg * b.splitSave/100) + '</div></div>' +
-    '<div class="split-card"><div class="pct">' + b.splitPlay + '%</div><div class="lbl">Play</div><div class="amt">' + fmt(monthlyAvg * b.splitPlay/100) + '</div></div>' +
-    '<div class="split-card"><div class="pct">' + debtPct + '%</div><div class="lbl">Debt</div><div class="amt">' + fmt(monthlyAvg * debtPct/100) + '</div></div>';
+    '<div class="split-card" style="' + splitHeatStyle(b.splitSave) + '"><div class="pct">' + b.splitSave + '%</div><div class="lbl">Save</div><div class="amt">' + fmt(monthlyAvg * b.splitSave/100) + '</div></div>' +
+    '<div class="split-card" style="' + splitHeatStyle(b.splitPlay) + '"><div class="pct">' + b.splitPlay + '%</div><div class="lbl">Play</div><div class="amt">' + fmt(monthlyAvg * b.splitPlay/100) + '</div></div>' +
+    '<div class="split-card" style="' + splitHeatStyle(debtPct) + '"><div class="pct">' + debtPct + '%</div><div class="lbl">Debt</div><div class="amt">' + fmt(monthlyAvg * debtPct/100) + '</div></div>';
 
   document.getElementById('cc-balance').textContent = fmt(b.ccBalance);
   document.getElementById('cc-input').value = '';
@@ -1581,7 +1589,7 @@ function renderActiveWorkout() {
   if (!root) return;
   root.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-      <input id="workout-name-input" class="budget-input" placeholder="e.g. Chest Day, Push, Legs" value="${activeWorkout.name}" style="flex:1;font-size:14px;">
+      <input id="workout-name-input" type="text" class="gym-search-input" placeholder="e.g. Chest Day, Push, Legs" value="${activeWorkout.name}" style="flex:1;font-size:14px;">
       <span class="gym-timer" id="gym-timer">${fmtElapsed(Date.now() - activeWorkout.startTime)}</span>
     </div>
     <div id="gym-ex-list"></div>
@@ -1683,6 +1691,22 @@ function renderExerciseList() {
   }));
 }
 
+function wireCustomAddHandlers(dd) {
+  dd.querySelectorAll('[data-custom-name]').forEach(opt => opt.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const name = opt.getAttribute('data-custom-name');
+    if (!(state.gymCustomExercises || []).find(e => e.name.toLowerCase() === name.toLowerCase())) {
+      if (!state.gymCustomExercises) state.gymCustomExercises = [];
+      state.gymCustomExercises.push({ id: 'c_' + Date.now(), name, category: 'Custom', muscles: [] });
+      saveState();
+    }
+    addExerciseToWorkout({ name, category: 'Custom', muscles: [] });
+    dd.style.display = 'none';
+    const inp = document.getElementById('gym-search');
+    if (inp) inp.value = '';
+  }));
+}
+
 async function doExerciseSearch(query) {
   const dd = document.getElementById('gym-results');
   if (!dd) return;
@@ -1690,9 +1714,17 @@ async function doExerciseSearch(query) {
   dd.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--text-dim);">Searching...</div>';
   try {
     const res = await fetch(getBackend() + '/api/exercises/search?q=' + encodeURIComponent(query));
+    if (!res.ok) throw new Error('search http ' + res.status);
     const data = await res.json();
+    const results = Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
     const custom = (state.gymCustomExercises || []).filter(e => e.name.toLowerCase().includes(query.toLowerCase()));
-    const all = [...custom.map(e => ({ ...e, isCustom: true })), ...data];
+    const all = [...custom.map(e => ({ ...e, isCustom: true })), ...results];
+    if (all.length === 0) {
+      dd.innerHTML = `<div style="padding:10px 12px;font-size:12px;color:var(--text-dim);">No matches — add "${query}" as a custom exercise below</div>` +
+        `<div class="gym-result-item custom-add" data-custom-name="${query}">+ Add "${query}" as custom exercise</div>`;
+      wireCustomAddHandlers(dd);
+      return;
+    }
     dd.innerHTML = all.slice(0, 10).map(ex => `
       <div class="gym-result-item" data-ex='${JSON.stringify({ name: ex.name, category: ex.category || '', muscles: ex.muscles || [] })}'>
         <strong>${ex.name}</strong>${ex.category ? ' <span style="color:var(--text-dim);font-size:11px;">· ' + ex.category + '</span>' : ''}${ex.isCustom ? ' <span style="color:var(--ember);font-size:10px;margin-left:4px;">CUSTOM</span>' : ''}
@@ -1705,19 +1737,7 @@ async function doExerciseSearch(query) {
       const inp = document.getElementById('gym-search');
       if (inp) inp.value = '';
     }));
-    dd.querySelectorAll('[data-custom-name]').forEach(opt => opt.addEventListener('mousedown', e => {
-      e.preventDefault();
-      const name = opt.getAttribute('data-custom-name');
-      if (!(state.gymCustomExercises || []).find(e => e.name.toLowerCase() === name.toLowerCase())) {
-        if (!state.gymCustomExercises) state.gymCustomExercises = [];
-        state.gymCustomExercises.push({ id: 'c_' + Date.now(), name, category: 'Custom', muscles: [] });
-        saveState();
-      }
-      addExerciseToWorkout({ name, category: 'Custom', muscles: [] });
-      dd.style.display = 'none';
-      const inp = document.getElementById('gym-search');
-      if (inp) inp.value = '';
-    }));
+    wireCustomAddHandlers(dd);
   } catch(e) {
     dd.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--ember);">Search unavailable — type a custom exercise below</div>';
   }
