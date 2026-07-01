@@ -247,6 +247,9 @@
   .streak-badge { position: absolute; bottom: -5px; right: -5px; display: flex; align-items: center; font-size: 9px; line-height: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1px 3px; color: var(--text); }
   .streak-badge.hot { filter: hue-rotate(190deg) saturate(2.2) brightness(1.25) drop-shadow(0 0 3px rgba(90,170,255,0.85)); }
   .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-dim); }
+  .cal-nav-btn { background: none; border: 1px solid var(--border); color: var(--text); border-radius: 4px; width: 24px; height: 24px; font-size: 15px; line-height: 1; cursor: pointer; }
+  .cal-nav-btn:hover:not(:disabled) { border-color: var(--ember); color: var(--ember); }
+  .cal-nav-btn:disabled { opacity: 0.3; cursor: default; }
   .legend span { display: flex; align-items: center; gap: 5px; }
   .legend .sw { width: 10px; height: 10px; border-radius: 2px; }
 
@@ -441,7 +444,14 @@
 
   <div class="panel" id="panel-calendar">
     <section>
-      <div class="section-head"><h2 id="cal-month-label">This month</h2><span class="tag">DAILY TARGETS</span></div>
+      <div class="section-head">
+        <h2 id="cal-month-label">This month</h2>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="cal-nav-btn" id="cal-prev-btn" aria-label="Previous month">&lsaquo;</button>
+          <button class="cal-nav-btn" id="cal-next-btn" aria-label="Next month">&rsaquo;</button>
+          <span class="tag">DAILY TARGETS</span>
+        </div>
+      </div>
       <div class="legend" style="margin-bottom:10px;">
         <span><span class="sw" style="background:var(--good);"></span>Great</span>
         <span><span class="sw" style="background:var(--warn);"></span>Okay</span>
@@ -1100,10 +1110,38 @@ function renderBudget() {
   ).join('') : '<div style="font-size:12px; color:var(--text-dim); padding:8px 0;">No spending logged yet.</div>';
 }
 
+function getEarliestTrackedDate() {
+  const sources = [state.workout, state.meals, state.water, state.reading, state.supplements];
+  let earliest = today;
+  sources.forEach(obj => {
+    Object.keys(obj || {}).forEach(key => { if (key < earliest) earliest = key; });
+  });
+  return earliest;
+}
+function monthIndex(y, m) { return y * 12 + m; }
+let calView = null;
+function navigateCalendar(delta) {
+  const now = new Date();
+  const earliest = getEarliestTrackedDate();
+  const minIdx = monthIndex(Number(earliest.slice(0, 4)), Number(earliest.slice(5, 7)) - 1);
+  const maxIdx = monthIndex(now.getFullYear(), now.getMonth());
+  let idx = monthIndex(calView.year, calView.month) + delta;
+  idx = Math.max(minIdx, Math.min(maxIdx, idx));
+  calView.year = Math.floor(idx / 12);
+  calView.month = idx - calView.year * 12;
+  renderCalendar();
+}
 function renderCalendar() {
   const now = new Date();
-  const year = now.getFullYear(), month = now.getMonth();
-  document.getElementById('cal-month-label').textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if (!calView) calView = { year: now.getFullYear(), month: now.getMonth() };
+  const year = calView.year, month = calView.month;
+  document.getElementById('cal-month-label').textContent = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const earliest = getEarliestTrackedDate();
+  const minIdx = monthIndex(Number(earliest.slice(0, 4)), Number(earliest.slice(5, 7)) - 1);
+  const maxIdx = monthIndex(now.getFullYear(), now.getMonth());
+  const curIdx = monthIndex(year, month);
+  document.getElementById('cal-prev-btn').disabled = curIdx <= minIdx;
+  document.getElementById('cal-next-btn').disabled = curIdx >= maxIdx;
   const dowRow = document.getElementById('cal-dow-row');
   dowRow.innerHTML = ['S','M','T','W','T','F','S'].map(d => '<div class="cal-dow">' + d + '</div>').join('');
   const firstDay = new Date(year, month, 1).getDay();
@@ -1127,6 +1165,8 @@ function renderCalendar() {
 }
 
 document.getElementById('date-label').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+document.getElementById('cal-prev-btn').addEventListener('click', () => navigateCalendar(-1));
+document.getElementById('cal-next-btn').addEventListener('click', () => navigateCalendar(1));
 document.getElementById('water-minus').addEventListener('click', () => adjustWater(-1));
 document.getElementById('water-plus').addEventListener('click', () => adjustWater(1));
 document.getElementById('pages-minus').addEventListener('click', () => adjustPages(-1));
