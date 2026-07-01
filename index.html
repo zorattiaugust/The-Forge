@@ -1357,14 +1357,15 @@ async function fetchRecommendations() {
       body: JSON.stringify({ context })
     });
     const data = await res.json();
+    if (data.error) throw new Error(data.error);
     state.recommendations = data.recommendations || [];
     saveState(); renderRecommendations();
-  } catch(e) {
-    btn.textContent = 'Failed — try again';
-  } finally {
     btn.textContent = 'Refresh recommendations';
-    btn.disabled = false;
+  } catch(e) {
+    document.getElementById('rec-list').innerHTML = '<div style="color:var(--ember);font-size:12px;padding:8px 0;">Could not load — ' + e.message + '</div>';
+    btn.textContent = 'Try again';
   }
+  btn.disabled = false;
 }
 
 function renderReminders() {
