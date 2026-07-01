@@ -159,6 +159,13 @@
   .counter-btn { width: 28px; height: 28px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .counter-val { font-family: 'IBM Plex Mono', monospace; font-size: 14px; min-width: 54px; text-align: center; }
 
+  .mic-btn { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  .mic-btn.recording { background: var(--bad); border-color: var(--bad); color: #fff; animation: mic-pulse 1s infinite; }
+  .mic-btn.mic-error { border-color: var(--bad); }
+  @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .voice-input-row { display: flex; gap: 8px; align-items: flex-start; }
+  .voice-input-row textarea { flex: 1; }
+
   .book-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; margin: 0 0 2px; }
   .book-author { font-size: 12px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; margin-bottom: 8px; }
   .book-sub { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin: 6px 0 14px; }
@@ -281,6 +288,7 @@
     <div id="manager-file-area"></div>
     <div class="agent-input-row">
       <textarea id="manager-input" placeholder="e.g. is a print-on-demand shirt business worth starting?"></textarea>
+      <button class="mic-btn" id="mic-manager" type="button">🎤</button>
       <button class="agent-send-btn" id="manager-send">Send</button>
     </div>
   </div>
@@ -289,6 +297,7 @@
     <div class="agent-msgs" id="coach-msgs"><div class="empty">Tell Rex what you've been doing today.</div></div>
     <div class="agent-input-row">
       <textarea id="coach-input" placeholder="e.g. did legs, leg press 200x8x3"></textarea>
+      <button class="mic-btn" id="mic-coach" type="button">🎤</button>
       <button class="agent-send-btn" id="coach-send">Send</button>
     </div>
   </div>
@@ -325,7 +334,10 @@
       <div id="nag-banner"></div>
       <div id="macro-bars"></div>
       <div class="meal-list" id="meal-list"></div>
-      <textarea id="meal-input" placeholder="What did you eat? e.g. 2 eggs, 2 slices of toast, a banana"></textarea>
+      <div class="voice-input-row">
+        <textarea id="meal-input" placeholder="What did you eat? e.g. 2 eggs, 2 slices of toast, a banana"></textarea>
+        <button class="mic-btn" id="mic-meal" type="button">🎤</button>
+      </div>
       <button class="add-meal-btn" id="add-meal-btn">Log it</button>
     </section>
 
@@ -435,7 +447,10 @@
           <option value="other">Other</option>
         </select>
         <input type="number" id="tx-amt" placeholder="Amount">
-        <input type="text" id="tx-note" placeholder="Note (optional)" style="grid-column: span 2;">
+        <div style="grid-column: span 2; display: flex; gap: 8px;">
+          <input type="text" id="tx-note" placeholder="Note (optional)" style="flex: 1;">
+          <button class="mic-btn" id="mic-tx-note" type="button">🎤</button>
+        </div>
         <button id="tx-add">Log it</button>
       </div>
       <div class="tx-list" id="tx-list"></div>
@@ -466,13 +481,19 @@
     <section>
       <div class="section-head"><h2>Have to do</h2><span class="tag">REAL TASKS</span></div>
       <div class="meal-list" id="todo-list"></div>
-      <textarea id="todo-input" placeholder="e.g. dispute the card charge, order the book"></textarea>
+      <div class="voice-input-row">
+        <textarea id="todo-input" placeholder="e.g. dispute the card charge, order the book"></textarea>
+        <button class="mic-btn" id="mic-todo" type="button">🎤</button>
+      </div>
       <button class="add-meal-btn" id="add-todo-btn">Add</button>
     </section>
     <section>
       <div class="section-head"><h2>Want to do</h2><span class="tag">SOMEDAY</span></div>
       <div class="meal-list" id="want-list"></div>
-      <textarea id="want-input" placeholder="e.g. try a new gym, read another book after this one"></textarea>
+      <div class="voice-input-row">
+        <textarea id="want-input" placeholder="e.g. try a new gym, read another book after this one"></textarea>
+        <button class="mic-btn" id="mic-want" type="button">🎤</button>
+      </div>
       <button class="add-meal-btn" id="add-want-btn">Add</button>
     </section>
     <section>
@@ -485,7 +506,10 @@
   <div class="panel" id="panel-ideas">
     <div class="callout">This is the backlog. Anything you mention wanting later goes here so it doesn't get lost.</div>
     <div class="meal-list" id="ideas-list"></div>
-    <textarea id="idea-input" placeholder="Add something for later, e.g. yearly budget view"></textarea>
+    <div class="voice-input-row">
+      <textarea id="idea-input" placeholder="Add something for later, e.g. yearly budget view"></textarea>
+      <button class="mic-btn" id="mic-idea" type="button">🎤</button>
+    </div>
     <button class="add-meal-btn" id="add-idea-btn">Add to backlog</button>
   </div>
   </div>
@@ -1167,6 +1191,13 @@ function renderCalendar() {
 document.getElementById('date-label').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 document.getElementById('cal-prev-btn').addEventListener('click', () => navigateCalendar(-1));
 document.getElementById('cal-next-btn').addEventListener('click', () => navigateCalendar(1));
+attachVoiceInput(document.getElementById('mic-meal'), document.getElementById('meal-input'));
+attachVoiceInput(document.getElementById('mic-coach'), document.getElementById('coach-input'));
+attachVoiceInput(document.getElementById('mic-manager'), document.getElementById('manager-input'));
+attachVoiceInput(document.getElementById('mic-todo'), document.getElementById('todo-input'));
+attachVoiceInput(document.getElementById('mic-want'), document.getElementById('want-input'));
+attachVoiceInput(document.getElementById('mic-idea'), document.getElementById('idea-input'));
+attachVoiceInput(document.getElementById('mic-tx-note'), document.getElementById('tx-note'));
 document.getElementById('water-minus').addEventListener('click', () => adjustWater(-1));
 document.getElementById('water-plus').addEventListener('click', () => adjustWater(1));
 document.getElementById('pages-minus').addEventListener('click', () => adjustPages(-1));
@@ -1786,6 +1817,51 @@ function renderExerciseList() {
     activeWorkout.exercises.splice(Number(btn.getAttribute('data-rm-ex')), 1);
     renderExerciseList();
   }));
+}
+
+function attachVoiceInput(micBtnEl, targetInputEl) {
+  if (micBtnEl.dataset.voiceWired) return;
+  micBtnEl.dataset.voiceWired = '1';
+  let mediaRecorder = null;
+  let chunks = [];
+  micBtnEl.addEventListener('click', async () => {
+    micBtnEl.classList.remove('mic-error');
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.addEventListener('dataavailable', e => { if (e.data.size > 0) chunks.push(e.data); });
+      mediaRecorder.addEventListener('stop', async () => {
+        stream.getTracks().forEach(t => t.stop());
+        micBtnEl.classList.remove('recording');
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'recording.webm');
+        micBtnEl.disabled = true;
+        try {
+          const res = await fetch(getBackend() + '/api/transcribe', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.text) {
+            targetInputEl.value = targetInputEl.value ? targetInputEl.value + ' ' + data.text : data.text;
+            targetInputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          } else {
+            micBtnEl.classList.add('mic-error');
+          }
+        } catch (e) {
+          micBtnEl.classList.add('mic-error');
+        }
+        micBtnEl.disabled = false;
+      });
+      mediaRecorder.start();
+      micBtnEl.classList.add('recording');
+    } catch (e) {
+      micBtnEl.classList.add('mic-error');
+    }
+  });
 }
 
 function wireCustomAddHandlers(dd) {
