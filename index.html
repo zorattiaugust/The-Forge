@@ -978,30 +978,19 @@ async function searchBooks(query) {
   dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">Searching...</div>';
   dd.classList.add('open');
   try {
-    const res = await fetch('https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(query) + '&maxResults=6&printType=books');
-    const data = await res.json();
+    const res = await fetch(getBackend() + '/api/books/search?q=' + encodeURIComponent(query));
+    const items = await res.json();
     dd.innerHTML = '';
-    const items = data.items || [];
     if (!items.length) { dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">No results found</div>'; return; }
-    items.slice(0, 6).forEach(item => {
-      const v = item.volumeInfo;
-      const cover = (v.imageLinks || {}).smallThumbnail || '';
-      const pages = v.pageCount || null;
+    items.forEach(item => {
       const opt = document.createElement('div');
       opt.className = 'book-opt';
-      opt.innerHTML = (cover ? '<img src="' + cover + '" alt="">' : '<div style="width:32px;height:44px;background:var(--surface-2);border-radius:2px;flex-shrink:0"></div>') +
-        '<div class="book-opt-info"><div class="opt-title">' + (v.title || 'Unknown') + '</div><div class="opt-author">' + (v.authors ? v.authors[0] : 'Unknown') + '</div><div class="opt-pages">' + (pages ? pages + ' pages' : 'pages unknown') + '</div></div>';
+      opt.innerHTML = (item.cover ? '<img src="' + item.cover + '" alt="">' : '<div style="width:32px;height:44px;background:var(--surface-2);border-radius:2px;flex-shrink:0"></div>') +
+        '<div class="book-opt-info"><div class="opt-title">' + item.title + '</div><div class="opt-author">' + item.author + '</div><div class="opt-pages">' + (item.pages ? item.pages + ' pages' : 'pages unknown') + '</div></div>';
       opt.addEventListener('mousedown', e => {
         e.preventDefault();
-        const existing = (state.books || []);
-        const hasReading = existing.find(b => b.status === 'reading');
-        addBook({
-          id: item.id,
-          title: v.title || 'Unknown',
-          author: v.authors ? v.authors[0] : 'Unknown',
-          pages: pages || 300,
-          cover: cover
-        }, hasReading ? 'next' : 'reading');
+        const hasReading = (state.books || []).find(b => b.status === 'reading');
+        addBook({ ...item, pages: item.pages || 300 }, hasReading ? 'next' : 'reading');
         document.getElementById('book-search').value = '';
         dd.classList.remove('open');
       });
