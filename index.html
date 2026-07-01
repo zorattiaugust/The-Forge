@@ -212,6 +212,8 @@
   .book-opt-info .opt-title { font-size: 13px; }
   .book-opt-info .opt-author { font-size: 11px; color: var(--text-dim); }
   .book-opt-info .opt-pages { font-size: 11px; color: var(--ember); font-family: 'IBM Plex Mono', monospace; }
+  .rec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
+  .rec-card .rec-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ember); margin-bottom: 4px; text-transform: uppercase; }
   .suggest-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); margin: 14px 0 6px; }
   .suggest-chip { display: inline-block; font-size: 12px; font-family: 'IBM Plex Mono', monospace; padding: 5px 10px; border: 1px solid var(--border); border-radius: 4px; margin: 0 6px 6px 0; cursor: pointer; color: var(--text-dim); }
   .suggest-chip:hover { border-color: var(--ember); color: var(--ember); }
@@ -493,6 +495,11 @@
       <textarea id="want-input" placeholder="e.g. try a new gym, read another book after this one"></textarea>
       <button class="add-meal-btn" id="add-want-btn">Add</button>
     </section>
+    <section>
+      <div class="section-head"><h2>Recommendations</h2><span class="tag">FROM FORGE</span></div>
+      <div id="rec-list"></div>
+      <button class="add-meal-btn" id="rec-btn" style="margin-top:10px;">Get recommendations</button>
+    </section>
   </div>
 
   <div class="panel" id="panel-ideas">
@@ -645,7 +652,7 @@ function todayKey() {
 function defaultState() {
   return {
     workout: {}, macros: {}, supplements: {}, water: {}, reading: {}, meals: {}, exercises: {}, runs: {}, deletedCloudIds: [],
-    books: [], bookProgress: {},
+    books: [], bookProgress: {}, recommendations: [],
     suppStack: DEFAULT_STACK.map(id => SUPP_CATALOG.find(s => s.id === id)).filter(Boolean),
     budget: {
       weeklyIncomes: [], splitSave: 30, splitPlay: 20,
@@ -681,7 +688,7 @@ function loadState() {
         budget: Object.assign(defaultState().budget, parsed.budget || {}),
         reminders: Object.assign(defaultState().reminders, parsed.reminders || {}),
         deletedCloudIds: parsed.deletedCloudIds || [],
-        books: parsed.books || [], bookProgress: parsed.bookProgress || {},
+        books: parsed.books || [], bookProgress: parsed.bookProgress || {}, recommendations: parsed.recommendations || [],
         suppStack: parsed.suppStack || DEFAULT_STACK.map(id => SUPP_CATALOG.find(s => s.id === id)).filter(Boolean)
       });
     }
@@ -1322,6 +1329,44 @@ document.getElementById('tx-add').addEventListener('click', () => {
   document.getElementById('tx-note').value = '';
 });
 
+function renderRecommendations() {
+  const list = document.getElementById('rec-list');
+  const recs = state.recommendations || [];
+  list.innerHTML = recs.length
+    ? recs.map(r => '<div class="rec-card"><div class="rec-label">' + (r.label || 'Forge') + '</div>' + r.text + '</div>').join('')
+    : '<div style="font-size:12px;color:var(--text-dim);padding:8px 0;">Hit the button to get personalized recommendations.</div>';
+}
+
+async function fetchRecommendations() {
+  const btn = document.getElementById('rec-btn');
+  btn.textContent = 'Thinking...';
+  btn.disabled = true;
+  const curr = getCurrentBook();
+  const context = [
+    curr ? 'Currently reading: ' + curr.title + ' by ' + curr.author + ' (' + getBookProgress(curr.id) + '/' + curr.pages + ' pages)' : 'No book in progress.',
+    'Supplement stack: ' + (state.suppStack || []).map(s => s.name).join(', '),
+    'Water today: ' + (state.water[today] || 0) + ' cups',
+    'Worked out today: ' + (state.workout[today] ? 'Yes (' + state.workout[today] + ')' : 'No'),
+    'Books in queue: ' + (state.books || []).filter(b => b.status === 'next').map(b => b.title).join(', ') || 'none',
+    'Todo list: ' + (state.reminders.todo || []).map(i => i.text).join(', ') || 'empty'
+  ].join('\n');
+  try {
+    const res = await fetch(getBackend() + '/api/recommendations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ context })
+    });
+    const data = await res.json();
+    state.recommendations = data.recommendations || [];
+    saveState(); renderRecommendations();
+  } catch(e) {
+    btn.textContent = 'Failed — try again';
+  } finally {
+    btn.textContent = 'Refresh recommendations';
+    btn.disabled = false;
+  }
+}
+
 function renderReminders() {
   const r = state.reminders;
   document.getElementById('todo-list').innerHTML = r.todo.length
@@ -1338,7 +1383,9 @@ function renderReminders() {
     state.reminders.want = state.reminders.want.filter(i => i.id !== Number(btn.getAttribute('data-rm-want')));
     saveState(); renderReminders();
   }));
+  renderRecommendations();
 }
+document.getElementById('rec-btn').addEventListener('click', fetchRecommendations);
 document.getElementById('add-todo-btn').addEventListener('click', () => {
   const ta = document.getElementById('todo-input');
   if (!ta.value.trim()) return;
