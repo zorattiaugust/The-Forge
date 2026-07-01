@@ -88,8 +88,8 @@
   .outer-panel { display: none; }
   .outer-panel.active { display: block; }
 
-  #outer-manager, #outer-coach { display: none; flex-direction: column; min-height: 60vh; }
-  #outer-manager.active, #outer-coach.active { display: flex; }
+  #outer-manager, #outer-coach { display: none; flex-direction: column; }
+  #outer-manager.active, #outer-coach.active { display: flex; height: calc(100vh - 140px); }
   .agent-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 12px; }
   .agent-msg { padding: 10px 12px; border-radius: 6px; font-size: 14px; line-height: 1.45; max-width: 88%; white-space: pre-wrap; }
   .agent-msg.user { align-self: flex-end; background: var(--ember-dim); border: 1px solid var(--ember); }
