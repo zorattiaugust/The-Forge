@@ -937,7 +937,7 @@ bookSearchEl.addEventListener('input', () => {
   clearTimeout(bookSearchTimer);
   bookSearchTimer = setTimeout(() => searchBooks(bookSearchEl.value), 400);
 });
-bookSearchEl.addEventListener('blur', () => setTimeout(() => document.getElementById('book-dropdown').classList.remove('open'), 200));
+bookSearchEl.addEventListener('blur', () => setTimeout(() => document.getElementById('book-dropdown').classList.remove('open'), 400));
 function getCurrentBook() {
   return (state.books || []).find(b => b.status === 'reading') || null;
 }
@@ -996,7 +996,7 @@ async function searchBooks(query) {
       });
       dd.appendChild(opt);
     });
-  } catch(e) { dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">Search failed</div>'; }
+  } catch(e) { dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">Search failed — check connection</div>'; dd.classList.add('open'); }
 }
 
 async function addSuggestion(title) {
