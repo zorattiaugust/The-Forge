@@ -239,11 +239,13 @@
 
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 1rem; }
   .cal-dow { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-dim); text-align: center; padding-bottom: 4px; }
-  .cal-cell { aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; border: 1px solid var(--border); color: var(--text-dim); }
+  .cal-cell { position: relative; aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; border: 1px solid var(--border); color: var(--text-dim); }
   .cal-cell.empty { border: none; }
   .cal-cell.green { background: rgba(122,140,92,0.25); border-color: var(--good); color: var(--text); }
   .cal-cell.yellow { background: rgba(201,161,59,0.2); border-color: var(--warn); color: var(--text); }
   .cal-cell.red { background: rgba(181,80,63,0.2); border-color: var(--bad); color: var(--text); }
+  .streak-badge { position: absolute; bottom: -5px; right: -5px; display: flex; align-items: center; font-size: 9px; line-height: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1px 3px; color: var(--text); }
+  .streak-badge.hot { filter: hue-rotate(190deg) saturate(2.2) brightness(1.25) drop-shadow(0 0 3px rgba(90,170,255,0.85)); }
   .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-dim); }
   .legend span { display: flex; align-items: center; gap: 5px; }
   .legend .sw { width: 10px; height: 10px; border-radius: 2px; }
@@ -961,6 +963,37 @@ function dayScore(dateKey) {
   const done = [workout >= 1, nutrition >= 0.9, water >= 1, reading >= 1].filter(Boolean).length;
   return { done, total: 4, pct, precise };
 }
+function dateKeyFor(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function dayClass(dateKey) {
+  const s = dayScore(dateKey);
+  if (s.done === 0) return '';
+  if (s.pct >= 75) return 'green';
+  if (s.pct >= 40) return 'yellow';
+  return 'red';
+}
+function computeMonthStreaks(year, month, daysInMonth) {
+  let streak = 0, greenRun = 0, greenActive = true;
+  for (let i = 1; i <= 120; i++) {
+    const key = dateKeyFor(new Date(year, month, 1 - i));
+    if (key > today) continue;
+    const cls = dayClass(key);
+    if (cls === 'red' || cls === '') break;
+    streak++;
+    if (greenActive && cls === 'green') greenRun++; else greenActive = false;
+  }
+  const info = {};
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = dateKeyFor(new Date(year, month, day));
+    if (key > today) continue;
+    const cls = dayClass(key);
+    if (cls === 'red' || cls === '') { streak = 0; greenRun = 0; }
+    else { streak++; if (cls === 'green') greenRun++; else greenRun = 0; }
+    info[key] = { streak, greenRun };
+  }
+  return info;
+}
 function renderDial() {
   const s = dayScore(today);
   const circumference = 226;
@@ -1056,17 +1089,19 @@ function renderCalendar() {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const grid = document.getElementById('cal-grid');
+  const streaks = computeMonthStreaks(year, month, daysInMonth);
   let html = '';
   for (let i = 0; i < firstDay; i++) html += '<div class="cal-cell empty"></div>';
   for (let day = 1; day <= daysInMonth; day++) {
     const dateKey = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
     const isFuture = dateKey > today;
     if (isFuture) { html += '<div class="cal-cell">' + day + '</div>'; continue; }
-    const s = dayScore(dateKey);
-    let cls = 'red';
-    if (s.pct >= 75) cls = 'green'; else if (s.pct >= 40) cls = 'yellow';
-    if (s.done === 0) cls = '';
-    html += '<div class="cal-cell ' + cls + '">' + day + '</div>';
+    const cls = dayClass(dateKey);
+    const info = streaks[dateKey];
+    const badge = info && info.streak >= 2
+      ? '<span class="streak-badge' + (info.greenRun >= 3 ? ' hot' : '') + '">\u{1F525}' + info.streak + '</span>'
+      : '';
+    html += '<div class="cal-cell ' + cls + '">' + day + badge + '</div>';
   }
   grid.innerHTML = html;
 }
