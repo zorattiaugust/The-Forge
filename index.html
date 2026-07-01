@@ -255,7 +255,7 @@
 
   footer { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 2.5rem; }
   .agent-msg.assistant { display: flex; align-items: flex-start; gap: 8px; }
-  .agent-icon { font-size: 20px; flex-shrink: 0; line-height: 1.4; }
+  .agent-icon { display: inline-flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; line-height: 1; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; width: 26px; height: 26px; }
   .agent-text { white-space: pre-wrap; flex: 1; }
   #outer-manager.drag-over { outline: 2px dashed var(--ember); outline-offset: -6px; border-radius: 4px; }
   .file-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--ember-dim); border: 1px solid var(--ember); border-radius: 4px; padding: 6px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-bottom: 8px; }
@@ -1492,7 +1492,7 @@ document.getElementById('coach-send').addEventListener('click', async () => {
   const container = document.getElementById('coach-msgs');
   addAgentMsg(container, 'user', text);
   ta.value = '';
-  const thinking = addAgentMsg(container, 'assistant', 'Thinking...', 'Rex');
+  const thinking = addAgentMsg(container, 'assistant', 'Thinking...', '💪');
   try {
     const res = await fetch(backend + '/api/coach/message', {
       method: 'POST',
