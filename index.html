@@ -1315,6 +1315,13 @@ function fitAgentPanel() {
 }
 
 // --- Outer tabs: Manager / Coach / Goals ---
+let coachGreeted = false;
+let managerGreeted = false;
+function greetIfEmpty(containerId, greeting, icon, agentAlreadyGreeted) {
+  const container = document.getElementById(containerId);
+  if (agentAlreadyGreeted || !container.querySelector('.empty')) return;
+  addAgentMsg(container, 'assistant', greeting, icon);
+}
 document.querySelectorAll('.outer-tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.outer-tab-btn').forEach(b => b.classList.remove('active'));
@@ -1322,7 +1329,13 @@ document.querySelectorAll('.outer-tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('outer-' + btn.getAttribute('data-otab')).classList.add('active');
     if (btn.getAttribute('data-otab') === 'goals') mergeCloudLogs();
-    if (btn.getAttribute('data-otab') === 'manager') renderHistoryButton();
+    if (btn.getAttribute('data-otab') === 'manager') {
+      renderHistoryButton();
+      if (!managerThreadId) { greetIfEmpty('manager-msgs', 'What can I do for you?', '💼', managerGreeted); managerGreeted = true; }
+    }
+    if (btn.getAttribute('data-otab') === 'coach') {
+      greetIfEmpty('coach-msgs', "How's the productivity going today?", 'Rex', coachGreeted); coachGreeted = true;
+    }
     requestAnimationFrame(fitAgentPanel);
   });
 });
@@ -1515,7 +1528,7 @@ document.getElementById('manager-send').addEventListener('click', async () => {
   const container = document.getElementById('manager-msgs');
   addAgentMsg(container, 'user', text);
   ta.value = '';
-  const thinking = addAgentMsg(container, 'assistant', 'Delegating to the team...', '💼');
+  const thinking = addAgentMsg(container, 'assistant', 'Thinking...', '💼');
   try {
     const res = await fetch(backend + '/api/manager/message', {
       method: 'POST',
