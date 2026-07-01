@@ -849,6 +849,7 @@ function totalPagesRead() { return Object.values(state.reading).reduce((a,b) => 
 
 function renderSplit() {
   const grid = document.getElementById('split-grid');
+  if (!grid) return;
   grid.innerHTML = '';
   SPLIT_DAYS.forEach(d => {
     const btn = document.createElement('button');
@@ -1103,82 +1104,8 @@ function renderDial() {
   document.getElementById('dial-num').textContent = s.pct + '%';
   document.getElementById('dial-sub').textContent = s.done + ' of ' + s.total + ' targets hit today';
 }
-function renderExercises() {
-  const list = state.exercises[today] || [];
-  const totalVol = list.reduce((sum, e) => sum + exVolume(e), 0);
-  document.getElementById('ex-volume-tag').textContent = totalVol ? (totalVol.toLocaleString() + ' LB TOTAL VOLUME') : 'NOTHING LOGGED';
-  document.getElementById('ex-list').innerHTML = list.length ? list.map(e => {
-    const vol = exVolume(e);
-    const prevVol = lastSessionVolume(e.name, today);
-    let trendHtml = '<span class="trend flat">first time logged</span>';
-    if (prevVol !== null && prevVol > 0) {
-      const diff = Math.round(((vol - prevVol) / prevVol) * 100);
-      if (diff > 2) trendHtml = '<span class="trend up">\u2191 ' + diff + '% vs last session (' + prevVol.toLocaleString() + ' lb)</span>';
-      else if (diff < -2) trendHtml = '<span class="trend down">\u2193 ' + Math.abs(diff) + '% vs last session (' + prevVol.toLocaleString() + ' lb)</span>';
-      else trendHtml = '<span class="trend flat">flat vs last session (' + prevVol.toLocaleString() + ' lb)</span>';
-    }
-    return '<div class="ex-row"><div class="top"><div class="name">' + e.name + '</div><button class="rm" data-rm-ex="' + e.id + '">remove</button></div>' +
-      '<div class="meta">' + e.weight + ' lb \u00d7 ' + e.reps + ' reps \u00d7 ' + e.sets + ' sets \u00b7 ' + vol.toLocaleString() + ' lb volume</div>' +
-      '<div class="trend-wrap">' + trendHtml + '</div></div>';
-  }).join('') : '<div style="font-size:12px; color:var(--text-dim); padding:6px 0;">No sets logged today.</div>';
-  document.querySelectorAll('[data-rm-ex]').forEach(btn => btn.addEventListener('click', () => removeExercise(Number(btn.getAttribute('data-rm-ex')))));
-}
-function renderNeglect() {
-  const rows = SPLIT_DAYS.map(d => {
-    const days = daysSinceSplit(d.id);
-    return { name: d.name, days };
-  });
-  document.getElementById('neglect-list').innerHTML = rows.map(r => {
-    const stale = r.days === null || r.days >= 7;
-    const label = r.days === null ? 'never logged' : (r.days === 0 ? 'today' : r.days + ' day' + (r.days === 1 ? '' : 's') + ' ago');
-    return '<div class="neglect-row' + (stale ? ' stale' : '') + '"><span>' + r.name + '</span><span class="days">' + label + '</span></div>';
-  }).join('');
-}
-function renderPlan() {
-  const splitId = state.workout[today];
-  const plan = splitId ? SPLIT_PLAN[splitId] : null;
-  const block = document.getElementById('plan-block');
-  if (!plan || !plan.exercises) {
-    block.innerHTML = splitId ? '' : '<div class="callout" style="margin-bottom:0;">Pick a split above to load today\'s plan.</div>';
-    return;
-  }
-  block.innerHTML = '<div style="margin-bottom:6px; color:var(--text-dim); font-family:\'IBM Plex Mono\',monospace; font-size:11px;">TODAY\'S PLAN \u2014 TAP TO FILL</div>' +
-    plan.exercises.map(p => '<button class="split-btn" data-plan="' + p.name + '" data-sets="' + p.sets + '" data-reps="' + p.reps + '" style="width:100%; margin-bottom:6px; justify-content:space-between;"><span>' + p.name + '</span><span style="color:var(--text-dim); font-family:\'IBM Plex Mono\',monospace; font-size:11px;">' + p.sets + 'x' + p.reps + '</span></button>').join('');
-  document.querySelectorAll('[data-plan]').forEach(btn => btn.addEventListener('click', () => {
-    document.getElementById('ex-name').value = btn.getAttribute('data-plan');
-    document.getElementById('ex-sets').value = btn.getAttribute('data-sets');
-    document.getElementById('ex-reps').value = btn.getAttribute('data-reps');
-    document.getElementById('ex-weight').focus();
-  }));
-}
-function renderRuns() {
-  const splitId = state.workout[today];
-  const plan = splitId ? SPLIT_PLAN[splitId] : null;
-  const isRunDay = !!(plan && plan.run);
-  document.getElementById('run-block').style.display = isRunDay ? 'block' : 'none';
-  document.getElementById('lift-block').style.display = isRunDay ? 'none' : 'block';
-  if (!isRunDay) return;
-  const runs = state.runs[today] || [];
-  document.getElementById('run-tag').textContent = runs.length ? runs.length + ' LOGGED TODAY' : 'NOTHING LOGGED';
-  document.getElementById('run-list').innerHTML = runs.length ? runs.map(r => {
-    const p = pace(r.dist, r.mins);
-    const prev = lastRun(today);
-    let trendHtml = '<span class="trend flat">first run logged</span>';
-    if (prev) {
-      const prevPace = pace(prev.dist, prev.mins);
-      const diff = (prevPace - p);
-      if (diff > 0.1) trendHtml = '<span class="trend up">\u2191 faster than last run (' + prev.dist + ' mi in ' + prev.mins + ' min)</span>';
-      else if (diff < -0.1) trendHtml = '<span class="trend down">\u2193 slower than last run (' + prev.dist + ' mi in ' + prev.mins + ' min)</span>';
-      else trendHtml = '<span class="trend flat">about the same pace as last run</span>';
-    }
-    return '<div class="ex-row"><div class="top"><div class="name">' + r.dist + ' mi in ' + r.mins + ' min</div><button class="rm" data-rm-run="' + r.id + '">remove</button></div>' +
-      '<div class="meta">' + p.toFixed(1) + ' min/mile pace</div>' +
-      '<div class="trend-wrap">' + trendHtml + '</div></div>';
-  }).join('') : '<div style="font-size:12px; color:var(--text-dim); padding:6px 0;">No run logged yet today. Go at least 2 miles.</div>';
-  document.querySelectorAll('[data-rm-run]').forEach(btn => btn.addEventListener('click', () => removeRun(Number(btn.getAttribute('data-rm-run')))));
-}
 function renderToday() {
-  renderSplit(); renderMacros(); renderSupplements(); renderReading(); renderDial(); renderExercises(); renderNeglect(); renderPlan(); renderRuns();
+  renderMacros(); renderSupplements(); renderReading(); renderDial();
 }
 function renderAll() {
   renderToday(); renderCalendar(); renderMeals(); renderBudget(); renderIdeas(); renderReminders();
@@ -1280,24 +1207,6 @@ document.getElementById('add-meal-btn').addEventListener('click', () => {
   const ta = document.getElementById('meal-input');
   addMeal(ta.value);
   ta.value = '';
-});
-document.getElementById('ex-add-btn').addEventListener('click', () => {
-  const name = document.getElementById('ex-name').value;
-  const weight = Number(document.getElementById('ex-weight').value);
-  const reps = Number(document.getElementById('ex-reps').value);
-  const sets = Number(document.getElementById('ex-sets').value);
-  addExercise(name, weight, reps, sets);
-  document.getElementById('ex-name').value = '';
-  document.getElementById('ex-weight').value = '';
-  document.getElementById('ex-reps').value = '';
-  document.getElementById('ex-sets').value = '';
-});
-document.getElementById('run-add-btn').addEventListener('click', () => {
-  const dist = Number(document.getElementById('run-dist').value);
-  const mins = Number(document.getElementById('run-time').value);
-  addRun(dist, mins);
-  document.getElementById('run-dist').value = '';
-  document.getElementById('run-time').value = '';
 });
 
 document.getElementById('add-week-income').addEventListener('click', () => {
