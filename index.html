@@ -354,6 +354,7 @@
           <button class="counter-btn" id="pages-plus">+</button>
         </div>
       </div>
+      <div class="book-sub" id="reading-target-tip" style="display:none;"></div>
       <div class="book-search-wrap">
         <input type="text" id="book-search" placeholder="Search for a book to add..." autocomplete="off">
         <div class="book-dropdown" id="book-dropdown"></div>
@@ -673,7 +674,17 @@ async function pullStateFromSupabase() {
 }
 
 let state = loadState();
-const today = todayKey();
+let today = todayKey();
+
+function scheduleMidnightRollover() {
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+  setTimeout(() => {
+    today = todayKey();
+    renderAll();
+    scheduleMidnightRollover();
+  }, nextMidnight - now);
+}
 
 function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
 
@@ -902,10 +913,19 @@ function renderReading() {
     document.getElementById('book-done-btn').addEventListener('click', () => markBookDone(curr.id));
     counterRow.style.display = '';
     document.getElementById('pages-val').textContent = state.reading[today] || 0;
+    const targetTip = document.getElementById('reading-target-tip');
+    const targetPage = Math.min(curr.pages, prog + PAGES_PER_NIGHT);
+    if (prog < curr.pages) {
+      targetTip.style.display = '';
+      targetTip.textContent = 'Read ~30 min tonight to reach page ' + targetPage;
+    } else {
+      targetTip.style.display = 'none';
+    }
   } else {
     tag.textContent = '—';
     currArea.innerHTML = '<div style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">No book in progress. Search above to add one.</div>';
     counterRow.style.display = 'none';
+    document.getElementById('reading-target-tip').style.display = 'none';
   }
 
   const queue = (state.books || []).filter(b => b.status === 'next');
@@ -1823,6 +1843,7 @@ renderReminders();
 renderGymHome();
 mergeCloudLogs();
 pullStateFromSupabase();
+scheduleMidnightRollover();
 </script>
 </body>
 </html>
