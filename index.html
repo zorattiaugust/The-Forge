@@ -32,28 +32,11 @@
   }
   .wrap { max-width: 480px; margin: 0 auto; padding: 1.5rem 1.25rem; }
   .debt-wrap { display: block; }
-  .ex-row { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; margin-bottom: 6px; }
-  .ex-row .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .ex-row .name { font-size: 14px; font-weight: 500; flex: 1; }
-  .ex-row .meta { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
-  .ex-row .trend { font-family: 'IBM Plex Mono', monospace; font-size: 11px; margin-top: 4px; }
-  .ex-row .trend.up { color: var(--good); }
-  .ex-row .trend.down { color: var(--bad); }
-  .ex-row .trend.flat { color: var(--text-dim); }
-  .ex-form { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
-  .ex-form button { grid-column: span 4; background: var(--ember-dim); border: 1px solid var(--ember); color: var(--text); font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; font-size: 14px; padding: 9px; border-radius: 4px; cursor: pointer; }
-  .neglect-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--surface); border-radius: 4px; border: 1px solid var(--border); margin-bottom: 6px; font-size: 13px; }
-  .neglect-row .days { font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
-  .neglect-row.stale { border-color: var(--bad); }
-  .neglect-row.stale .days { color: var(--bad); }
   @media (min-width: 720px) {
     .wrap { max-width: 880px; padding: 2rem 2.5rem; }
-    .split-grid { grid-template-columns: repeat(3, 1fr); }
     .macro-inputs { grid-template-columns: repeat(4, 1fr); }
     .debt-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .debt-wrap .debt-card { margin-bottom: 0; }
-    .ex-form { grid-template-columns: 2fr 1fr 1fr 1fr auto; }
-    .ex-form button { grid-column: auto; }
   }
   header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
   .brand { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 2px; }
@@ -126,16 +109,6 @@
   .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
   .section-head h2 { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; font-weight: 400; margin: 0; }
   .section-head .tag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); }
-
-  .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .split-btn {
-    display: flex; align-items: center; gap: 8px; padding: 12px 10px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; cursor: pointer; text-align: left;
-  }
-  .split-btn.active { background: var(--ember-dim); border-color: var(--ember); }
-  .split-btn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
-  .split-btn.active .dot { background: var(--ember); }
 
   .bar-row { margin-bottom: 10px; }
   .bar-label { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
@@ -505,46 +478,10 @@
   </div>
 
 
-  <footer>Saved locally on this device. No account, no sync.</footer>
+  <footer>Synced to the cloud. Your data follows you.</footer>
 </div>
 
 <script>
-const SPLIT_DAYS = [
-  { id: 'chest_tri', name: 'Chest and tris' },
-  { id: 'back_bi', name: 'Back and bis' },
-  { id: 'shoulders', name: 'Shoulders' },
-  { id: 'legs', name: 'Legs' },
-  { id: 'cardio', name: 'Cardio / running' }
-];
-// Plan keyed by split id, so it matches whichever split button you tap, not the calendar day
-const SPLIT_PLAN = {
-  chest_tri: { exercises: [
-    { name: 'bench', sets: 4, reps: 10 },
-    { name: 'incline', sets: 4, reps: 10 },
-    { name: 'cable flys', sets: 3, reps: 10 },
-    { name: 'behind head tricep extension', sets: 4, reps: 10 }
-  ]},
-  back_bi: { exercises: [
-    { name: 'barbell curls', sets: 4, reps: 10 },
-    { name: 'dumbbell curls', sets: 4, reps: 10 },
-    { name: 'lat pulldown', sets: 4, reps: 10 },
-    { name: 'cable row', sets: 4, reps: 10 }
-  ]},
-  cardio: { run: true },
-  shoulders: { exercises: [
-    { name: 'shoulder press', sets: 4, reps: 10 },
-    { name: 'front raise', sets: 4, reps: 10 },
-    { name: 'lu raise', sets: 4, reps: 10 },
-    { name: 'rear delt row', sets: 4, reps: 10 }
-  ]},
-  legs: { exercises: [
-    { name: 'leg press', sets: 3, reps: 8 },
-    { name: 'straight leg deadlift', sets: 3, reps: 8 },
-    { name: 'leg extensions', sets: 4, reps: 10 },
-    { name: 'calf raises', sets: 3, reps: 12 },
-    { name: 'hamstring curls', sets: 4, reps: 10 }
-  ]}
-};
 const SUPP_CATALOG = [
   { id: 'magnesium', name: 'Magnesium' },
   { id: 'fishoil', name: 'Fish Oil' },
@@ -645,7 +582,7 @@ function todayKey() {
 
 function defaultState() {
   return {
-    workout: {}, macros: {}, supplements: {}, water: {}, reading: {}, meals: {}, exercises: {}, runs: {}, deletedCloudIds: [],
+    workout: {}, macros: {}, supplements: {}, water: {}, reading: {}, meals: {}, deletedCloudIds: [],
     books: [], bookProgress: {}, recommendations: [],
     gymWorkouts: [], gymTemplates: [], gymCustomExercises: [],
     suppStack: DEFAULT_STACK.map(id => SUPP_CATALOG.find(s => s.id === id)).filter(Boolean),
@@ -738,66 +675,6 @@ const today = todayKey();
 
 function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
 
-function setWorkout(id) {
-  if (state.workout[today] === id) { delete state.workout[today]; saveState(); renderToday(); renderCalendar(); return; }
-  state.workout[today] = id;
-  saveState(); renderToday(); renderCalendar();
-  syncToCloud('workout', { split: id });
-}
-function exVolume(e) { return e.weight * e.reps * e.sets; }
-function addExercise(name, weight, reps, sets) {
-  name = name.trim().toLowerCase();
-  if (!name || !weight || !reps || !sets) return;
-  if (!state.exercises[today]) state.exercises[today] = [];
-  const ex = { id: Date.now(), name, weight, reps, sets, splitId: state.workout[today] || null };
-  state.exercises[today].push(ex);
-  saveState(); renderToday();
-  syncToCloud('exercise', { name, weight, reps, sets }, id => { ex.cloudId = id; saveState(); });
-}
-function removeExercise(id) {
-  const ex = (state.exercises[today] || []).find(e => e.id === id);
-  state.exercises[today] = (state.exercises[today] || []).filter(e => e.id !== id);
-  saveState(); renderToday();
-  if (ex && ex.cloudId) deleteFromCloud(ex.cloudId);
-}
-function lastSessionVolume(name, excludeDate) {
-  const dates = Object.keys(state.exercises).filter(d => d !== excludeDate).sort().reverse();
-  for (const d of dates) {
-    const matches = (state.exercises[d] || []).filter(e => e.name === name);
-    if (matches.length) {
-      return matches.reduce((sum, e) => sum + exVolume(e), 0);
-    }
-  }
-  return null;
-}
-function daysSinceSplit(id) {
-  const dates = Object.keys(state.workout).filter(d => state.workout[d] === id).sort().reverse();
-  if (!dates.length) return null;
-  const last = new Date(dates[0]);
-  const now = new Date(today);
-  return Math.round((now - last) / 86400000);
-}
-function addRun(dist, mins) {
-  if (!dist || !mins) return;
-  if (!state.runs[today]) state.runs[today] = [];
-  const run = { id: Date.now(), dist, mins };
-  state.runs[today].push(run);
-  saveState(); renderToday();
-  syncToCloud('run', { dist, mins }, id => { run.cloudId = id; saveState(); });
-}
-function removeRun(id) {
-  const run = (state.runs[today] || []).find(r => r.id === id);
-  state.runs[today] = (state.runs[today] || []).filter(r => r.id !== id);
-  saveState(); renderToday();
-  if (run && run.cloudId) deleteFromCloud(run.cloudId);
-}
-function lastRun(excludeDate) {
-  const dates = Object.keys(state.runs).filter(d => d !== excludeDate && (state.runs[d] || []).length).sort().reverse();
-  if (!dates.length) return null;
-  const list = state.runs[dates[0]];
-  return list[list.length - 1];
-}
-function pace(dist, mins) { return dist > 0 ? mins / dist : 0; }
 function toggleSupp(id) {
   if (!state.supplements[today]) state.supplements[today] = {};
   const nowOn = !state.supplements[today][id];
@@ -847,18 +724,6 @@ function adjustPages(delta) {
 }
 function totalPagesRead() { return Object.values(state.reading).reduce((a,b) => a+b, 0); }
 
-function renderSplit() {
-  const grid = document.getElementById('split-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  SPLIT_DAYS.forEach(d => {
-    const btn = document.createElement('button');
-    btn.className = 'split-btn' + (state.workout[today] === d.id ? ' active' : '');
-    btn.innerHTML = '<span class="dot"></span><span>' + d.name + '</span>';
-    btn.addEventListener('click', () => setWorkout(d.id));
-    grid.appendChild(btn);
-  });
-}
 function renderMacros() {
   const m = computeDayMacros(today);
   const rows = [['Calories', m.cal, MACRO_TARGET.cal, ''], ['Protein', m.protein, MACRO_TARGET.protein, 'g'], ['Carbs', m.carb, MACRO_TARGET.carb, 'g'], ['Fat', m.fat, MACRO_TARGET.fat, 'g']];
@@ -1358,8 +1223,6 @@ document.querySelectorAll('.outer-tab-btn').forEach(btn => {
 });
 window.addEventListener('resize', fitAgentPanel);
 
-// --- Backend URL: saved locally only, never in the public code ---
-const BACKEND_KEY = 'forge_backend_url';
 function getBackend() { return 'https://forge-manager-backend-production.up.railway.app'; }
 
 
