@@ -89,7 +89,7 @@
   .outer-panel.active { display: block; }
 
   #outer-manager, #outer-coach { display: none; flex-direction: column; }
-  #outer-manager.active, #outer-coach.active { display: flex; height: calc(100vh - 140px); }
+  #outer-manager.active, #outer-coach.active { display: flex; }
   .agent-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 12px; }
   .agent-msg { padding: 10px 12px; border-radius: 6px; font-size: 14px; line-height: 1.45; max-width: 88%; white-space: pre-wrap; }
   .agent-msg.user { align-self: flex-end; background: var(--ember-dim); border: 1px solid var(--ember); }
@@ -1336,17 +1336,27 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+function fitAgentPanel() {
+  const panel = document.querySelector('#outer-manager.active, #outer-coach.active');
+  if (!panel) return;
+  const top = panel.getBoundingClientRect().top + window.scrollY;
+  const available = window.innerHeight - top - 16;
+  panel.style.height = Math.max(300, available) + 'px';
+}
+
 // --- Outer tabs: Manager / Coach / Goals ---
 document.querySelectorAll('.outer-tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.outer-tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.outer-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.outer-panel').forEach(p => { p.classList.remove('active'); p.style.height = ''; });
     btn.classList.add('active');
     document.getElementById('outer-' + btn.getAttribute('data-otab')).classList.add('active');
     if (btn.getAttribute('data-otab') === 'goals') mergeCloudLogs();
     if (btn.getAttribute('data-otab') === 'manager') renderHistoryButton();
+    requestAnimationFrame(fitAgentPanel);
   });
 });
+window.addEventListener('resize', fitAgentPanel);
 
 // --- Backend URL: saved locally only, never in the public code ---
 const BACKEND_KEY = 'forge_backend_url';
