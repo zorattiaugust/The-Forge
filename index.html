@@ -1439,6 +1439,7 @@ function addAgentMsg(container, role, text, icon, agent) {
   if (empty) empty.remove();
   const div = document.createElement('div');
   div.className = 'agent-msg ' + (role === 'user' ? 'user' : 'assistant');
+  div.dataset.speakReady = '1';
   if (role === 'assistant' && icon) {
     const iconEl = document.createElement('span');
     iconEl.className = 'agent-icon';
@@ -1456,6 +1457,7 @@ function addAgentMsg(container, role, text, icon, agent) {
     speakBtn.textContent = '\u{1F50A}';
     let cachedAudioUrl = null;
     speakBtn.addEventListener('click', async () => {
+      if (div.dataset.speakReady !== '1') return;
       if (cachedAudioUrl) { new Audio(cachedAudioUrl).play(); return; }
       speakBtn.classList.add('loading');
       try {
@@ -1553,6 +1555,7 @@ document.getElementById('coach-send').addEventListener('click', async () => {
   addAgentMsg(container, 'user', text);
   ta.value = '';
   const thinking = addAgentMsg(container, 'assistant', 'Thinking...', 'Rex', 'rex');
+  thinking.dataset.speakReady = '';
   try {
     const res = await fetch(backend + '/api/coach/message', {
       method: 'POST',
@@ -1561,6 +1564,7 @@ document.getElementById('coach-send').addEventListener('click', async () => {
     });
     const data = await res.json();
     thinking.querySelector('.agent-text').textContent = data.reply || data.error || 'No response.';
+    thinking.dataset.speakReady = '1';
     if (data.pending && data.pending.length) addPendingCard(container, data.pending);
   } catch (e) {
     thinking.querySelector('.agent-text').textContent = 'Could not reach the backend. Check the URL in settings.';
@@ -1576,6 +1580,7 @@ document.getElementById('manager-send').addEventListener('click', async () => {
   addAgentMsg(container, 'user', text);
   ta.value = '';
   const thinking = addAgentMsg(container, 'assistant', 'Delegating to the team...', '💼', 'marcus');
+  thinking.dataset.speakReady = '';
   try {
     const res = await fetch(backend + '/api/manager/message', {
       method: 'POST',
@@ -1588,6 +1593,7 @@ document.getElementById('manager-send').addEventListener('click', async () => {
     localStorage.setItem('forge_manager_thread', managerThreadId);
     managerAttachment = null; renderManagerAttachment();
     thinking.querySelector('.agent-text').textContent = data.plan || '';
+    thinking.dataset.speakReady = '1';
     (data.results || []).forEach(r => {
       const div = document.createElement('div');
       div.className = 'agent-msg agent';
