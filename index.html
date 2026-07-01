@@ -163,6 +163,9 @@
   .mic-btn.recording { background: var(--bad); border-color: var(--bad); color: #fff; animation: mic-pulse 1s infinite; }
   .mic-btn.mic-error { border-color: var(--bad); }
   @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .speak-btn { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: none; color: var(--text-dim); cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; margin-left: 6px; }
+  .speak-btn:hover { border-color: var(--ember); color: var(--ember); }
+  .speak-btn.loading { opacity: 0.5; cursor: default; }
   .voice-input-row { display: flex; gap: 8px; align-items: flex-start; }
   .voice-input-row textarea { flex: 1; }
 
@@ -1417,7 +1420,7 @@ async function loadManagerHistory() {
       if (m.role === 'user') {
         addAgentMsg(container, 'user', m.content);
       } else if (m.role === 'manager') {
-        addAgentMsg(container, 'assistant', m.content, '💼');
+        addAgentMsg(container, 'assistant', m.content, '💼', 'marcus');
       } else if (m.role && m.role.startsWith('agent:')) {
         const specialist = m.role.replace('agent:', '').toUpperCase().replace('_', ' ');
         const div = document.createElement('div');
@@ -1431,7 +1434,7 @@ async function loadManagerHistory() {
   } catch (e) {}
 }
 
-function addAgentMsg(container, role, text, icon) {
+function addAgentMsg(container, role, text, icon, agent) {
   const empty = container.querySelector('.empty');
   if (empty) empty.remove();
   const div = document.createElement('div');
@@ -1446,6 +1449,32 @@ function addAgentMsg(container, role, text, icon) {
   textEl.className = 'agent-text';
   textEl.textContent = text;
   div.appendChild(textEl);
+  if (role === 'assistant' && agent) {
+    const speakBtn = document.createElement('button');
+    speakBtn.className = 'speak-btn';
+    speakBtn.type = 'button';
+    speakBtn.textContent = '\u{1F50A}';
+    let cachedAudioUrl = null;
+    speakBtn.addEventListener('click', async () => {
+      if (cachedAudioUrl) { new Audio(cachedAudioUrl).play(); return; }
+      speakBtn.classList.add('loading');
+      try {
+        const res = await fetch(getBackend() + '/api/speak', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text: textEl.textContent, agent })
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('audio')) {
+          const blob = await res.blob();
+          cachedAudioUrl = URL.createObjectURL(blob);
+          new Audio(cachedAudioUrl).play();
+        }
+      } catch (e) {}
+      speakBtn.classList.remove('loading');
+    });
+    div.appendChild(speakBtn);
+  }
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   return div;
@@ -1523,7 +1552,7 @@ document.getElementById('coach-send').addEventListener('click', async () => {
   const container = document.getElementById('coach-msgs');
   addAgentMsg(container, 'user', text);
   ta.value = '';
-  const thinking = addAgentMsg(container, 'assistant', 'Thinking...', 'Rex');
+  const thinking = addAgentMsg(container, 'assistant', 'Thinking...', 'Rex', 'rex');
   try {
     const res = await fetch(backend + '/api/coach/message', {
       method: 'POST',
@@ -1546,7 +1575,7 @@ document.getElementById('manager-send').addEventListener('click', async () => {
   const container = document.getElementById('manager-msgs');
   addAgentMsg(container, 'user', text);
   ta.value = '';
-  const thinking = addAgentMsg(container, 'assistant', 'Delegating to the team...', '💼');
+  const thinking = addAgentMsg(container, 'assistant', 'Delegating to the team...', '💼', 'marcus');
   try {
     const res = await fetch(backend + '/api/manager/message', {
       method: 'POST',
