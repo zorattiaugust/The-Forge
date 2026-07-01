@@ -1613,7 +1613,7 @@ document.getElementById('coach-send').addEventListener('click', async () => {
     const res = await fetch(backend + '/api/coach/message', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message: text, goalsContext: buildGoalsContext() })
+      body: JSON.stringify({ message: text, userId: getUserId(), goalsContext: buildGoalsContext() })
     });
     const data = await res.json();
     thinking.querySelector('.agent-text').textContent = data.reply || data.error || 'No response.';
@@ -1636,7 +1636,7 @@ document.getElementById('manager-send').addEventListener('click', async () => {
     const res = await fetch(backend + '/api/manager/message', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message: text, threadId: managerThreadId, goalsContext: buildGoalsContext(), fileData: managerAttachment ? managerAttachment.data : null, fileType: managerAttachment ? managerAttachment.type : null, fileName: managerAttachment ? managerAttachment.name : null })
+      body: JSON.stringify({ message: text, userId: getUserId(), threadId: managerThreadId, goalsContext: buildGoalsContext(), fileData: managerAttachment ? managerAttachment.data : null, fileType: managerAttachment ? managerAttachment.type : null, fileName: managerAttachment ? managerAttachment.name : null })
     });
     const data = await res.json();
     if (data.error) { thinking.querySelector('.agent-text').textContent = data.error; return; }
