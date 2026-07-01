@@ -981,15 +981,16 @@ async function searchBooks(query) {
     const res = await fetch('https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(query) + '&maxResults=6&printType=books');
     const data = await res.json();
     dd.innerHTML = '';
-    const items = (data.items || []).filter(i => i.volumeInfo.pageCount);
-    if (!items.length) { dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">No results with page count</div>'; return; }
-    items.forEach(item => {
+    const items = data.items || [];
+    if (!items.length) { dd.innerHTML = '<div class="book-opt" style="color:var(--text-dim)">No results found</div>'; return; }
+    items.slice(0, 6).forEach(item => {
       const v = item.volumeInfo;
       const cover = (v.imageLinks || {}).smallThumbnail || '';
+      const pages = v.pageCount || null;
       const opt = document.createElement('div');
       opt.className = 'book-opt';
       opt.innerHTML = (cover ? '<img src="' + cover + '" alt="">' : '<div style="width:32px;height:44px;background:var(--surface-2);border-radius:2px;flex-shrink:0"></div>') +
-        '<div class="book-opt-info"><div class="opt-title">' + (v.title || 'Unknown') + '</div><div class="opt-author">' + (v.authors ? v.authors[0] : 'Unknown') + '</div><div class="opt-pages">' + v.pageCount + ' pages</div></div>';
+        '<div class="book-opt-info"><div class="opt-title">' + (v.title || 'Unknown') + '</div><div class="opt-author">' + (v.authors ? v.authors[0] : 'Unknown') + '</div><div class="opt-pages">' + (pages ? pages + ' pages' : 'pages unknown') + '</div></div>';
       opt.addEventListener('mousedown', e => {
         e.preventDefault();
         const existing = (state.books || []);
@@ -998,7 +999,7 @@ async function searchBooks(query) {
           id: item.id,
           title: v.title || 'Unknown',
           author: v.authors ? v.authors[0] : 'Unknown',
-          pages: v.pageCount,
+          pages: pages || 300,
           cover: cover
         }, hasReading ? 'next' : 'reading');
         document.getElementById('book-search').value = '';
