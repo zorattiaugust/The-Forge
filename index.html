@@ -1026,9 +1026,9 @@ function renderBudget() {
   document.getElementById('split-play').value = b.splitPlay;
   const debtPct = Math.max(0, 100 - b.splitSave - b.splitPlay);
   document.getElementById('split-summary').innerHTML =
-    '<div class="split-card" style="' + splitHeatStyle(b.splitSave) + '"><div class="pct">' + b.splitSave + '%</div><div class="lbl">Save</div><div class="amt">' + fmt(monthlyAvg * b.splitSave/100) + '</div></div>' +
+    '<div class="split-card"><div class="pct">' + b.splitSave + '%</div><div class="lbl">Save</div><div class="amt">' + fmt(monthlyAvg * b.splitSave/100) + '</div></div>' +
     '<div class="split-card" style="' + splitHeatStyle(b.splitPlay) + '"><div class="pct">' + b.splitPlay + '%</div><div class="lbl">Play</div><div class="amt">' + fmt(monthlyAvg * b.splitPlay/100) + '</div></div>' +
-    '<div class="split-card" style="' + splitHeatStyle(debtPct) + '"><div class="pct">' + debtPct + '%</div><div class="lbl">Debt</div><div class="amt">' + fmt(monthlyAvg * debtPct/100) + '</div></div>';
+    '<div class="split-card"><div class="pct">' + debtPct + '%</div><div class="lbl">Debt</div><div class="amt">' + fmt(monthlyAvg * debtPct/100) + '</div></div>';
 
   document.getElementById('cc-balance').textContent = fmt(b.ccBalance);
   document.getElementById('cc-input').value = '';
@@ -1088,10 +1088,12 @@ document.getElementById('add-week-income').addEventListener('click', () => {
 });
 document.getElementById('split-save').addEventListener('change', e => {
   state.budget.splitSave = Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0)));
+  state.budget.splitPlay = Math.min(state.budget.splitPlay, 100 - state.budget.splitSave);
   saveState(); renderBudget();
 });
 document.getElementById('split-play').addEventListener('change', e => {
   state.budget.splitPlay = Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0)));
+  state.budget.splitSave = Math.min(state.budget.splitSave, 100 - state.budget.splitPlay);
   saveState(); renderBudget();
 });
 document.getElementById('cc-input').addEventListener('change', e => {
