@@ -1607,9 +1607,14 @@ document.getElementById('manager-send').addEventListener('click', async () => {
 });
 
 [document.getElementById('coach-input'), document.getElementById('manager-input')].forEach(el => {
-  el.addEventListener('keydown', e => {
+  el.addEventListener('keydown', async e => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      const micId = el.id === 'coach-input' ? 'mic-coach' : 'mic-manager';
+      const micBtn = document.getElementById(micId);
+      if (micBtn && micBtn._forgeStopRecording) {
+        await micBtn._forgeStopRecording();
+      }
       const btnId = el.id === 'coach-input' ? 'coach-send' : 'manager-send';
       document.getElementById(btnId).click();
     }
