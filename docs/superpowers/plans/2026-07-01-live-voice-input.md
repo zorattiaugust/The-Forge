@@ -214,10 +214,15 @@ Run: `curl -s https://zorattiaugust.github.io/The-Forge/ | grep -c "_forgeStopRe
 
 Expected: a number greater than `0` (confirms the new code is present in the deployed page). GitHub Pages deploys can take a minute or two — if the count is `0`, wait ~30 seconds and retry rather than assuming failure.
 
-- [ ] **Step 3: Test on the real iPhone**
+- [x] **Step 3: Test on the real iPhone**
 
 On the phone, fully close and reopen Forge (to avoid any stale Safari page cache), then:
 1. Tap a mic button and speak a full sentence continuously — confirm text appears in a few progressive bursts rather than all at once.
 2. Tap the mic again mid-recording to stop — confirm the last partial segment's text still appears.
 3. On the Rex or Marcus tab, tap the mic, speak, and press the on-screen return/send key before manually stopping — confirm the message sends with the complete transcribed text.
 4. Judge how noticeable/annoying the ~3-second chunk boundaries are in real use (per the design spec's accepted limitation) — this is the real-world signal for whether this is good enough or worth revisiting toward true streaming later. No code change required based on this judgment as part of this plan; report back what was observed.
+
+
+---
+
+**Outcome (2026-07-02):** Verified working on the real iPhone. User verdict on the chunked approach: functional and acceptable for now, but wants it smoother (true streaming-feel) in a future pass — revisit toward real-time streaming per the design spec's noted escape hatch.
