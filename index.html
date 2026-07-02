@@ -713,15 +713,28 @@ async function pullStateFromSupabase() {
 let state = loadState();
 let today = todayKey();
 
+function rolloverIfNeeded() {
+  if (todayKey() !== today) {
+    today = todayKey();
+    renderAll();
+  }
+}
+
 function scheduleMidnightRollover() {
   const now = new Date();
   const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
   setTimeout(() => {
-    today = todayKey();
-    renderAll();
+    rolloverIfNeeded();
     scheduleMidnightRollover();
   }, nextMidnight - now);
 }
+
+// iOS suspends timers while the app is backgrounded, so the midnight timeout
+// can never fire overnight — catch up whenever the page becomes visible again.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') rolloverIfNeeded();
+});
+window.addEventListener('pageshow', rolloverIfNeeded);
 
 function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
 
