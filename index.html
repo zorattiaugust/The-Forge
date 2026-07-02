@@ -211,7 +211,7 @@
   .set-check { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; padding: 4px 9px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
   .set-check.done { background: var(--ember); border-color: var(--ember); color: #fff; }
   .gym-search-wrap { position: relative; margin-top: 4px; }
-  .gym-search-input { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 10px 12px; font-size: 13px; }
+  .gym-search-input { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 10px 12px; font-size: 13px; -webkit-appearance: none; }
   .gym-search-input:focus { outline: none; border-color: var(--ember); }
   .gym-results { position: absolute; left: 0; right: 0; top: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; z-index: 100; max-height: 280px; overflow-y: auto; display: none; margin-top: 2px; }
   .gym-result-item { padding: 9px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); }
@@ -1781,7 +1781,7 @@ function renderActiveWorkout() {
   searchEl.addEventListener('blur', () => setTimeout(() => {
     const dd = document.getElementById('gym-results');
     if (dd) dd.style.display = 'none';
-  }, 200));
+  }, 400));
   document.getElementById('gym-finish-btn').addEventListener('click', finishWorkout);
   document.getElementById('gym-cancel-btn').addEventListener('click', () => {
     if (confirm('Cancel this workout? Progress will be lost.')) {
