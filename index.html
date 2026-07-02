@@ -1554,7 +1554,7 @@ document.getElementById('coach-send').addEventListener('click', async () => {
   const container = document.getElementById('coach-msgs');
   addAgentMsg(container, 'user', text);
   ta.value = '';
-  const thinking = addAgentMsg(container, 'assistant', 'Thinking...', 'Rex', 'rex');
+  const thinking = addAgentMsg(container, 'assistant', 'Thinking...', '🏋️', 'rex');
   thinking.dataset.speakReady = '';
   try {
     const res = await fetch(backend + '/api/coach/message', {
