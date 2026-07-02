@@ -1857,42 +1857,77 @@ function renderExerciseList() {
 function attachVoiceInput(micBtnEl, targetInputEl) {
   if (micBtnEl.dataset.voiceWired) return;
   micBtnEl.dataset.voiceWired = '1';
-  let mediaRecorder = null;
-  let chunks = [];
+  const SEGMENT_MS = 3000;
+  let stream = null;
+  let currentSegment = null;
+  let rotateTimer = null;
+  let isRecording = false;
+
+  function appendText(text) {
+    targetInputEl.value = targetInputEl.value ? targetInputEl.value + ' ' + text : text;
+    targetInputEl.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function uploadSegment(blob) {
+    if (blob.size === 0) return Promise.resolve();
+    const formData = new FormData();
+    formData.append('audio', blob, 'recording.webm');
+    return fetch(getBackend() + '/api/transcribe', { method: 'POST', body: formData })
+      .then(res => res.json())
+      .then(data => {
+        if (data.text) appendText(data.text);
+        else micBtnEl.classList.add('mic-error');
+      })
+      .catch(() => { micBtnEl.classList.add('mic-error'); });
+  }
+
+  function beginSegment() {
+    const chunks = [];
+    const recorder = new MediaRecorder(stream);
+    const completed = new Promise(resolve => {
+      recorder.addEventListener('stop', () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        uploadSegment(blob).then(resolve);
+      });
+    });
+    recorder.addEventListener('dataavailable', e => { if (e.data.size > 0) chunks.push(e.data); });
+    recorder.start();
+    return { recorder, completed };
+  }
+
+  function rotateSegment() {
+    const previous = currentSegment;
+    currentSegment = beginSegment();
+    previous.recorder.stop();
+  }
+
+  function stopRecording() {
+    if (!isRecording) return Promise.resolve();
+    isRecording = false;
+    micBtnEl.classList.remove('recording');
+    clearInterval(rotateTimer);
+    const finalSegment = currentSegment;
+    finalSegment.recorder.stop();
+    return finalSegment.completed.then(() => {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    });
+  }
+
+  micBtnEl._forgeStopRecording = stopRecording;
+
   micBtnEl.addEventListener('click', async () => {
     micBtnEl.classList.remove('mic-error');
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
+    if (isRecording) {
+      stopRecording();
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      chunks = [];
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.addEventListener('dataavailable', e => { if (e.data.size > 0) chunks.push(e.data); });
-      mediaRecorder.addEventListener('stop', async () => {
-        stream.getTracks().forEach(t => t.stop());
-        micBtnEl.classList.remove('recording');
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append('audio', blob, 'recording.webm');
-        micBtnEl.disabled = true;
-        try {
-          const res = await fetch(getBackend() + '/api/transcribe', { method: 'POST', body: formData });
-          const data = await res.json();
-          if (data.text) {
-            targetInputEl.value = targetInputEl.value ? targetInputEl.value + ' ' + data.text : data.text;
-            targetInputEl.dispatchEvent(new Event('input', { bubbles: true }));
-          } else {
-            micBtnEl.classList.add('mic-error');
-          }
-        } catch (e) {
-          micBtnEl.classList.add('mic-error');
-        }
-        micBtnEl.disabled = false;
-      });
-      mediaRecorder.start();
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      isRecording = true;
       micBtnEl.classList.add('recording');
+      currentSegment = beginSegment();
+      rotateTimer = setInterval(rotateSegment, SEGMENT_MS);
     } catch (e) {
       micBtnEl.classList.add('mic-error');
     }
