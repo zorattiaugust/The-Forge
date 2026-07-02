@@ -26,13 +26,13 @@
 - Consumes: nothing new — same `getBackend()` helper and `/api/transcribe` endpoint already used today.
 - Produces: `micBtnEl._forgeStopRecording` — a zero-argument function, attached to the mic button element passed into `attachVoiceInput`, callable by other code (Task 2). Calling it: if not currently recording, returns `Promise.resolve()` immediately. If recording, stops the current segment, waits for its transcription to be appended to the target field, stops the microphone stream, and returns a `Promise<void>` that resolves once all of that is done.
 
-- [ ] **Step 1: Read the current function to confirm exact current line range**
+- [x] **Step 1: Read the current function to confirm exact current line range**
 
 Run: `grep -n "^function attachVoiceInput" -A 45 index.html | head -50`
 
 Expected: shows the existing function starting at line 1857 and ending with a closing `}` before line 1901 (a blank line). Confirm the exact end line before editing — if the codebase has changed since this plan was written, adjust the line range in the next step accordingly.
 
-- [ ] **Step 2: Replace the function body**
+- [x] **Step 2: Replace the function body**
 
 Replace the entire existing `attachVoiceInput` function (from `function attachVoiceInput(micBtnEl, targetInputEl) {` through its closing `}`) with:
 
@@ -120,13 +120,13 @@ function attachVoiceInput(micBtnEl, targetInputEl) {
 
 Note: `rotateSegment` starts the next `MediaRecorder` on the same open `stream` *before* stopping the previous one, so there is no gap where audio isn't being captured — a `MediaStream`'s tracks can be read by more than one `MediaRecorder` at a time, so this overlap is safe.
 
-- [ ] **Step 3: Manual verification in a desktop browser**
+- [x] **Step 3: Manual verification in a desktop browser**
 
 Open `index.html` in Chrome (serve it with `python3 -m http.server` from the repo root and open `http://localhost:<port>/index.html` — opening via `file://` can block microphone access in some browsers). Go to a tab with a mic button (e.g. Reminders → todo input). Click the mic button, grant permission, and speak a full sentence continuously for at least 10 seconds without stopping.
 
 Expected: the input field fills in with text in a few separate bursts roughly every 3 seconds, not all at once at the end. Click the mic button again to stop; expected: one final burst of text appears for whatever was said in the last partial segment, and the mic button's `recording` (pulsing) visual state clears.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add index.html
@@ -144,7 +144,7 @@ git commit -m "Rewrite voice input as chunked/segmented recording for live trans
 - Consumes: `micBtnEl._forgeStopRecording` from Task 1 (a zero-arg function returning `Promise<void>`), looked up via `document.getElementById('mic-coach')` / `document.getElementById('mic-manager')`.
 - Produces: nothing new for other tasks — this is a leaf change.
 
-- [ ] **Step 1: Replace the existing Enter-keydown handler**
+- [x] **Step 1: Replace the existing Enter-keydown handler**
 
 Replace:
 
@@ -179,13 +179,13 @@ with:
 });
 ```
 
-- [ ] **Step 2: Manual verification in a desktop browser**
+- [x] **Step 2: Manual verification in a desktop browser**
 
 With the same local server running from Task 1, go to the Rex (Coach) tab. Click the mic button next to the chat input, speak a short sentence, and — while still recording (before tapping the mic to stop) — press Enter.
 
 Expected: recording stops (mic button's pulsing state clears), the last bit of speech appears in the input field, and then the message sends with the complete transcribed text (not missing the final words). Repeat once for the Marcus (Manager) tab.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add index.html
@@ -200,7 +200,7 @@ git commit -m "Flush final voice segment before Enter-to-send on Rex/Marcus chat
 
 **Interfaces:** none — this task only exercises what Tasks 1 and 2 built.
 
-- [ ] **Step 1: Push to origin/main**
+- [x] **Step 1: Push to origin/main**
 
 ```bash
 git push origin main
@@ -208,7 +208,7 @@ git push origin main
 
 Expected output includes a line like `<old-sha>..<new-sha>  main -> main`. This triggers GitHub Pages to redeploy the updated `index.html` automatically (same as the last few voice-feature deploys) — no further action needed for the frontend to go live.
 
-- [ ] **Step 2: Confirm the live page has the update**
+- [x] **Step 2: Confirm the live page has the update**
 
 Run: `curl -s https://zorattiaugust.github.io/The-Forge/ | grep -c "_forgeStopRecording"`
 
